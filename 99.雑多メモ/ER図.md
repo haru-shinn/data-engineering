@@ -70,91 +70,154 @@
 ```mermaid
 erDiagram
 
-    passengers {
-        string passenger_id PK "旅客ID"
-        string passenger_name "旅客名"
-        date date_birth "生年月日"
-        string gender "性別"
-        string email "メールアドレス"
+    %% 会員テーブル（会員登録された方の情報）
+    users {
+      string user_id PK "会員ID"
+      string user_name "会員氏名"
+      string password "パスワード"
+      string phone "電話番号"
+      string email "メールアドレス"
+      integer point "保有point"
     }
 
+    %% 船テーブル（保有している船の情報）
     ships {
         string ship_id PK "船ID"
-        string ship_name "船名前"
+        string ship_name "船名"
         float length "全長"
         integer gross_tonnage "総トン数"
         date start_date "運用開始日"
         date end_date "運用終了日"
     }
 
-    rooms {
-        string room_id PK "部屋ID"
-        string ship_id FK "船ID"
-        string room_class "客室クラス"
-        integer room_count "客室数"
+    %% 部屋クラステーブル（各船に用意されている客室クラスの情報）
+    room_classes {
+        string ship_id PK, FK "船ID"
+        string room_class_id PK "客室クラスID"
+        string room_class_name "客室クラス名"
+        integer capacity_per_room "1室あたりの定員"
+        integer room_count "客室数（船＋クラス単位）"
     }
 
+    %% 部屋テーブル（各船に用意されている客室の情報）
+    rooms {
+      string room_id PK "部屋ID（船ID+連番）"
+      string room_class_id FK "客室クラスID"
+      string room_no "部屋番号"
+    }
+
+    %% 航路テーブル（運行する航路の情報）
     routes {
         string route_id PK "航路ID"
+        string section_id PK "区間ID"
+        string round_trip_section PK "往路区分"
         string departure_port_id FK "出発港"
         string arrival_port_id FK "到着港"
-        integer route_order "航路順番"
     }
 
+    %% 港テーブル（港の情報）
     ports {
         string port_id PK "港ID"
         string port_name "港名"
         string prefecture_code FK "都道府県コード"
         string city_code FK "市区町村コード"
-        string address "住所詳細"
     }
 
+    %% 都道府県テーブル（都道府県名の情報）
     prefectures {
-        string pref_code PK "都道府県コード"
-        string pref_name "都道府県名"
+        string prefecture_code PK "都道府県コード"
+        string prefecture_name "都道府県名"
     }
 
+    %% 市区町村テーブル（市区町村の情報）
     cities {
         string city_code PK "市区町村コード"
-        string pref_code FK "都道府県コード"
+        string prefecture_code FK "都道府県コード"
         string city_name "市区町村名"
     }
 
+    %% 運行スケジュールテーブル（運行スケジュールの情報）
     schedule {
-        string schedule_id PK "運行ID"
-        string route_id FK "航路ID"
+        string route_id PK,FK "航路ID"
+        string section_id PK,FK "区間ID"
+        string round_trip_section PK,FK "往路区分"
+        date departure_date PK "出発日"
+        date arrival_date "到着日"
+        timestamp departure_time PK "出発時刻"
+        timestamp arrival_time "到着時刻"
         string ship_id FK "船ID"
-        date departure_date "運行日"
     }
 
+    %% 予約基本情報テーブル（ヘッダー情報：誰が、いつ、どの便を）
     reservations {
         string reservation_id PK "予約ID"
-        string passenger_id FK "旅客ID"
+        string user_id "旅客ID(任意)"
         string schedule_id FK "運行ID"
+        string rep_name "代表者名"
+        string rep_email "代表者連絡先"
         date reservation_date "予約日"
-        string root_id "運行ルート"
-        string room_class "客室クラス"
-        string room_number "客室番号"
-        integer payment_amount "支払い金額"
     }
 
+    %% 予約明細情報テーブル（ボディ情報：誰が、どの区分で、どの部屋か）
+    reservation_details {
+        string reservation_id PK,FK "予約ID"
+        string detail_id PK "明細ID"
+        string passenger_id "旅客ID(任意)"
+        string passenger_type "区分(大人/小人)"
+        string room_class "希望クラス"
+        integer applied_fare "適用運賃"
+    }
+
+    %% 在庫テーブル（残りの部屋数）
+    inventry {
+        string route_id PK,FK "航路ID"
+        string section_id PK,FK "区間ID"
+        string round_trip_section PK,FK "往路区分"
+        date departure_date PK "出発日"
+        timestamp departure_time PK "出発時刻"
+        string ship_id FK "船ID"
+        integer room_count "客室数（船＋クラス単位）"
+        integer remaining_romm_count "残室数（船＋クラス単位）"
+    }
+
+    %% 発券テーブル（発券情報）
+    ticketing {
+      string ticket_id PK "発券ID"
+      string reservation_id FK "予約ID"
+      string ticket_type "搭乗券種別"
+    }
+
+    %% 搭乗実績テーブル（搭乗情報）
     boarding {
         string boarding_id PK "乗船ID"
         string reservation_id FK "予約ID"
+        string ticket_id FK "発券ID"
         boolean boarding_flg "乗船FLG"
     }
 
+    %% 運賃テーブル（運賃タイプと運賃の情報）
+    fare_master {
+        string route_id PK, FK "航路ID"
+        string section_id PK, FK "区間ID"
+        string room_class PK "客室クラス"
+        integer fare "金額"
+    }
 
     prefectures ||--o{ cities: "所在する"
     cities ||--o{ ports: "所在する"
     ports ||--o{ routes: "出発・到着する"
 
-    ships ||--o{ rooms: "保有する"
+    ships ||--o{ room_classes: "保有する"
+    room_classes ||--o{ rooms : "部屋情報を保有する"
     ships ||--o{ schedule: "割り当てられる"
-    routes ||--o{ schedule: "運行計画となる"   
+    routes ||--o{ schedule: "運行計画となる"
+    fare_master ||--o{ room_classes: "計算する"
+    fare_master ||--o{ routes: "計算する"
 
-    passengers ||--o{ reservations: "予約する"
+    users ||--o{ reservations : "会員情報の確認"
     schedule ||--o{ reservations: "予約対象となる"
-
-    reservations ||--|| boarding: "搭乗する"
+    schedule ||--|| inventry: "在庫の確認"
+    reservations ||--|{ reservation_details : "人数分作成する"
+    reservations ||--|{ ticketing: "発券する"
+    ticketing ||--|| boarding: "搭乗する"
 ```
