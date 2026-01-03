@@ -6,5 +6,9 @@
         "titleBar.inactiveForeground": "#ffffff",
         "statusBar.background": "#f76ca1",
         "statusBar.foreground": "#ffffff",
+    },
+    "markdownlint.config": {
+        "MD033": false,
+        "MD036": false,
     }
 }

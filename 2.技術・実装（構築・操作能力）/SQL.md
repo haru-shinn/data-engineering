@@ -1,6 +1,7 @@
 # SQL
 
 [[目次]]
+
 - [SQL](#sql)
   - [特性関数](#特性関数)
   - [存在量化と全称量化](#存在量化と全称量化)
@@ -23,14 +24,17 @@
 - 具体例
   - 例1：カテゴリ別の集計（条件付きカウント）
     - ユーザーテーブルから「男性の数」と「女性の数」を一度に集計したい場合
+
     ```sql
     SELECT
         COUNT(CASE WHEN gender = 'male' THEN 1 END) AS male_count,
         COUNT(CASE WHEN gender = 'female' THEN 1 END) AS female_count
     FROM users;
     ```
+
   - 例2：フラグ立てによるスコアリング
-    -  複数の条件を判定して、ユーザーのランクを計算する場合
+    - 複数の条件を判定して、ユーザーのランクを計算する場合
+
     ```sql
     SELECT
         user_id,
@@ -38,17 +42,22 @@
         CASE WHEN purchase_count > 5 THEN 1 ELSE 0 END) AS loyalty_score
     FROM user_stats;
     ```
+
 - 特性関数を使う際のポイント
   - SUMとCOUNTの使い分け
     - 条件に合う数を足し合わせる
+
     ```sql
     SUM(CASE WHEN ... THEN 1 ELSE 0 END)
     ```
+
     - Nullを数えない性質の利用
+
     ```sql
     COUNT(CASE WHEN ... THEN 1 ELSE NULL END)
     ```
-- 参照： ミック（2018）達人に学ぶSQL徹底指南書第２版　初級者で終わりたくないあなたへ　株式会社翔泳社p186-236 
+
+- 参照： ミック（2018）達人に学ぶSQL徹底指南書第２版　初級者で終わりたくないあなたへ　株式会社翔泳社p186-236
 
 ---
 
@@ -115,7 +124,9 @@ WHERE NOT EXISTS (
 
 - 具体的な書き方の違い
 「注文履歴が1件でもあるユーザー」を探す例で比較する
-  -  EXISTS を使う場合（推奨）
+
+  - EXISTS を使う場合（推奨）
+
     ```sql
     SELECT *
     FROM Users u
@@ -125,7 +136,9 @@ WHERE NOT EXISTS (
         WHERE o.user_id = u.id
     );
     ```
+
   - GROUP BY と特性関数（集計）を使う場合
+
     ```sql
     SELECT u.*
     FROM Users u
@@ -140,11 +153,11 @@ WHERE NOT EXISTS (
   - GROUP BY = 「並べる（全部見てから決める）」という 静的・構造的 なアプローチ
 
 比較表
+
 |構文|数学的な問い|コンピュータへの負荷|
 |--|--|--|
 |EXISTS|「条件を満たすものが 1つでも存在するか？」|軽い（見つかったら探索終了）|
 |GROUP BY|「各グループの 要素の構成や統計量はどうなっているか？」|重い（全件を分類・計算する必要がある）|
-
 
 - Window関数を含めた場合
 
@@ -152,6 +165,7 @@ WHERE NOT EXISTS (
   - 「存在するかどうか」だけでなく、「存在を確認しつつ、その行自体の詳細も保持し、さらに全体の順位や累計も出したい」 という場合
 
 - 具体例
+
 ```sql
 SELECT *
 FROM (
@@ -170,4 +184,3 @@ WHERE order_count > 0;
 |視点|1行ずつの真偽判定|グループごとの要約|行を維持したままの並行計算|
 |結果の行数|元のテーブルと同じ（か減少）|グループの数まで減少|元のテーブルと全く同じ|
 |得意なこと|高速な存在判定|統計・集約レポート|順位付け、移動平均、前後行比較|
-
