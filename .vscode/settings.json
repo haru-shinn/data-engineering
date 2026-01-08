@@ -10,5 +10,6 @@
     "markdownlint.config": {
         "MD033": false,
         "MD036": false,
-    }
+    },
+    "sqlfluff.executablePath": "${workspaceFolder}/.venv_lab/bin/sqlfluff"
 }

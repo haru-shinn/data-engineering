@@ -1,0 +1,7 @@
+.venv_lab/*
+.vscode/settings.json
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.idea/
