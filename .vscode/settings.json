@@ -11,5 +11,9 @@
         "MD033": false,
         "MD036": false,
     },
-    "sqlfluff.executablePath": "${workspaceFolder}/.venv_lab/bin/sqlfluff"
+    "sqlfluff.executablePath": "${workspaceFolder}/.venv_lab/bin/sqlfluff",
+    "[sql]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+    }
 }
