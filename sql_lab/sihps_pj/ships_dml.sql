@@ -5,7 +5,7 @@ INSERT INTO SHIPS.PASSENGERS VALUES
 ()
 ;
 
-/* 船テーブル */
+/* 船マスタテーブル */
 INSERT INTO SHIPS.SHIPS (ship_id, ship_name, length, width, gross_tonnage, service_speed, max_passenger_capacity, start_date, end_date) VALUES 
 ('S001', 'AppleMaru', 200.6, 27.1, 14015, 23, 443, '2025-05-10', '9999-12-31')
 , ('S002', 'BananaMaru', 200.6, 27.1, 14015, 23, 443, '2025-06-14', '9999-12-31')
@@ -14,8 +14,58 @@ INSERT INTO SHIPS.SHIPS (ship_id, ship_name, length, width, gross_tonnage, servi
 ;
 
 /* 車両区分マスタ */
+INSERT INTO SHIPS.VEHICLE_TYPES (type_code, type_name, length_limit, displacement_limit) VALUES
+('CAR_SMALL', '軽自動車', 5.0, 0)
+, ('CAR_REG', '普通車', 6.0, 0)
+, ('TRACK_SMALL', '軽トラック', 5.0, 0)
+, ('TRUCK_REG', '普通トラック', 9.0, 0)
+, ('TRUCK_BIG', '大型トラック', 13.0, 0)
+, ('MOT_CY_SMALL', '二輪（50cc以下）', 0.0, 50)
+, ('MOT_CY_REG', '二輪（400cc以下）', 0.0, 400)
+, ('MOT_CY_BIG', '二輪（750cc以下）', 0.0, 750)
+, ('MOT_CY_HIGH_BIG', '二輪（750cc越）', 0.0, 9999)
+, ('BICYCLE', '自転車', 0.0, 0)
+;
 
 /* 船別積載能力 */
+-- AppleMaru(S001), BananaMaru(S002)用
+-- 大型トラック140台、乗用車150台、バイク40台の要件を按分
+-- トラック、乗用車、バイク内で枠の流用が可能。ただし、最大積載量は越えない。
+INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) VALUES
+  ('S001', 'TRUCK_BIG', 130)
+, ('S001', 'TRUCK_REG', 10)
+, ('S001', 'TRUCK_SMALL', 5)
+, ('S001', 'CAR_REG', 120)
+, ('S001', 'CAR_SMALL', 30)
+, ('S001', 'MOT_CY_HIGH_BIG',  5)
+, ('S001', 'MOT_CY_BIG', 10)
+, ('S001', 'MOT_CY_REG', 15)
+, ('S001', 'MOT_CY_SMALL', 10)
+, ('S001', 'BICYCLE', 10);
+
+-- BananaMaruはAppleMaruと同じ設定
+INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) 
+SELECT 'S002', type_code, max_capacity FROM SHIPS.SHIP_CAPACITIES WHERE ship_id = 'S001';
+
+-- OrangeMaru(S003), GrapeMaru(S004)用
+-- 大型トラック170台、乗用車20台、バイク20台の要件を按分
+-- トラック、乗用車、バイク内で枠の流用が可能。ただし、最大積載量は越えない。
+INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) VALUES
+  ('S003', 'TRUCK_BIG',       160)
+, ('S003', 'TRUCK_REG',        10)
+, ('S003', 'TRUCK_SMALL',       0)
+, ('S003', 'CAR_REG',          15)
+, ('S003', 'CAR_SMALL',         5)
+, ('S003', 'MOT_CY_HIGH_BIG',   2)
+, ('S003', 'MOT_CY_BIG',        3)
+, ('S003', 'MOT_CY_REG',       10)
+, ('S003', 'MOT_CY_SMALL',      5)
+, ('S003', 'BICYCLE',           5);
+
+-- GrapeMaruはOrangeMaruと同じ設定
+INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) 
+SELECT 'S004', type_code, max_capacity FROM SHIPS.SHIP_CAPACITIES WHERE ship_id = 'S003';
+
 
 /* 客室クラス定義マスタ */
 INSERT INTO SHIPS.ROOM_CLASS_MASTER VALUES

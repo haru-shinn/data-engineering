@@ -7,6 +7,7 @@
 CREATE DATABASE WORK_DB;
 CREATE SCHEMA SHIPS;
 
+-- 乗客テーブル
 DROP TABLE IF EXISTS SHIPS.PASSENGERS;
 CREATE TABLE IF NOT EXISTS SHIPS.PASSENGERS (
     passenger_id CHAR(8) PRIMARY KEY
@@ -36,9 +37,10 @@ CREATE TABLE IF NOT EXISTS SHIPS.SHIPS (
 -- 車両区分マスタ（普通車、軽自動車、長さによる区分など）
 DROP TABLE IF EXISTS SHIPS.VEHICLE_TYPES CASCADE;
 CREATE TABLE SHIPS.VEHICLE_TYPES (
-    type_code VARCHAR(12) PRIMARY KEY -- 'CAR_REG', 'CAR_SMALL', 'TRUCK_L' など
+    type_code VARCHAR(16) PRIMARY KEY -- 'CAR_REG', 'CAR_SMALL', 'TRUCK_L' など
     , type_name VARCHAR(32) NOT NULL  -- '普通車', '軽自動車'
-    , length_limit DECIMAL(4, 2)        -- 5.0mまで、などの判定用
+    , length_limit DECIMAL(4, 2)        -- 車は長さで判定（5.0mまでなど）
+    , displacement_limit INTEGER        -- 二輪車は排気量で判定（50cc以下など）
 );
 
 -- 船別積載能力
