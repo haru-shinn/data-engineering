@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.PASSENGERS (
     , point INTEGER
 );
 
--- 船マスタ（基本情報）
+-- 船マスタ（基本情報）テーブル
 DROP TABLE IF EXISTS SHIPS.SHIPS CASCADE;
 CREATE TABLE IF NOT EXISTS SHIPS.SHIPS (
     ship_id CHAR(4) PRIMARY KEY
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.SHIPS (
     , end_date DATE
 );
 
--- 車両区分マスタ（普通車、軽自動車、長さによる区分など）
+-- 車両区分マスタテーブル
 DROP TABLE IF EXISTS SHIPS.VEHICLE_TYPES CASCADE;
 CREATE TABLE SHIPS.VEHICLE_TYPES (
     type_code VARCHAR(16) PRIMARY KEY -- 'CAR_REG', 'CAR_SMALL', 'TRUCK_L' など
@@ -43,7 +43,7 @@ CREATE TABLE SHIPS.VEHICLE_TYPES (
     , displacement_limit INTEGER        -- 二輪車は排気量で判定（50cc以下など）
 );
 
--- 船別積載能力
+-- 船別積載能力テーブル
 DROP TABLE IF EXISTS SHIPS.SHIP_CAPACITIES CASCADE;
 CREATE TABLE SHIPS.SHIP_CAPACITIES (
     ship_id CHAR(4) NOT NULL
@@ -54,7 +54,7 @@ CREATE TABLE SHIPS.SHIP_CAPACITIES (
     , FOREIGN KEY (type_code) REFERENCES SHIPS.VEHICLE_TYPES(type_code)
 );
 
--- 客室クラス定義マスタ
+-- 客室クラス定義マスタテーブル
 DROP TABLE IF EXISTS SHIPS.ROOM_CLASS_MASTER CASCADE;
 CREATE TABLE IF NOT EXISTS SHIPS.ROOM_CLASS_MASTER (
     room_class_id CHAR(2)
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.ROOM_CLASS_MASTER (
     , UNIQUE (room_class_id, capacity_per_room)
 );
 
--- 船別客室設定
+-- 船別客室設定テーブル
 DROP TABLE IF EXISTS SHIPS.SHIP_ROOM_CLASSES CASCADE;
 CREATE TABLE IF NOT EXISTS SHIPS.SHIP_ROOM_CLASSES (
     ship_id CHAR(4)
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.SHIP_ROOM_CLASSES (
     , FOREIGN KEY (room_class_id, capacity_per_room) REFERENCES ships.room_class_master(room_class_id, capacity_per_room)
 );
 
--- 客室マスタ
+-- 客室マスタテーブル
 DROP TABLE IF EXISTS SHIPS.ROOMS CASCADE;
 CREATE TABLE IF NOT EXISTS SHIPS.ROOMS (
     room_id CHAR(9)          -- 船ID(4桁) + クラスID(2桁) + 連番(3桁)
@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.ROOMS (
     , FOREIGN KEY (ship_id, room_class_id) REFERENCES ships.ship_room_classes(ship_id, room_class_id)
 );
 
+-- 航路テーブル
 DROP TABLE IF EXISTS SHIPS.ROUTES;
 CREATE TABLE IF NOT EXISTS SHIPS.ROUTES (
     route_id CHAR(3) PRIMARY KEY
@@ -95,6 +96,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.ROUTES (
     , arrival_port_id CHAR(2) REFERENCES ships.ports(port_id)
 );
 
+-- 区間テーブル
 DROP TABLE IF EXISTS SHIPS.SECTIONS;
 CREATE TABLE IF NOT EXISTS SHIPS.SECTIONS (
     section_id CHAR(2) PRIMARY KEY
@@ -104,6 +106,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.SECTIONS (
     , notice CHAR(256)
 );
 
+-- 航路区間構成テーブル
 DROP TABLE IF EXISTS SHIPS.ROUTE_SECTIONS;
 CREATE TABLE IF NOT EXISTS SHIPS.ROUTE_SECTIONS (
     section_id CHAR(2) REFERENCES ships.sections(section_id)
@@ -111,6 +114,7 @@ CREATE TABLE IF NOT EXISTS SHIPS.ROUTE_SECTIONS (
     , PRIMARY KEY (section_id, route_id)
 );
 
+-- 港テーブル
 DROP TABLE IF EXISTS SHIPS.PORTS CASCADE;
 CREATE TABLE IF NOT EXISTS SHIPS.PORTS (
     port_id CHAR(2) PRIMARY KEY
@@ -136,9 +140,10 @@ CREATE TABLE IF NOT EXISTS SHIPS.CITIES (
 );
 */
 
-DROP TABLE IF EXISTS SHIPS.SCHEDULE;
+-- 運行スケジュールテーブル
+DROP TABLE IF EXISTS SHIPS.SCHEDULE CASCADE;
 CREATE TABLE IF NOT EXISTS SHIPS.SCHEDULE (
-    schedule_id CHAR(12) PRIMARY KEY
+    schedule_id CHAR(14) PRIMARY KEY
     , route_id CHAR(2) REFERENCES ships.routes(route_id)
     , section_id CHAR(2) REFERENCES ships.sections(section_id)
     , departure_date DATE

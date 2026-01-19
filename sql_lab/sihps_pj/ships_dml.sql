@@ -1,19 +1,19 @@
 /* 船の予約管理用のDML */
 
 /* 乗客テーブル */
-INSERT INTO SHIPS.PASSENGERS VALUES 
+INSERT INTO SHIPS.PASSENGERS VALUES
 ()
 ;
 
-/* 船マスタテーブル */
-INSERT INTO SHIPS.SHIPS (ship_id, ship_name, length, width, gross_tonnage, service_speed, max_passenger_capacity, start_date, end_date) VALUES 
+/* 船マスタ（基本情報）テーブル */
+INSERT INTO SHIPS.SHIPS (ship_id, ship_name, length, width, gross_tonnage, service_speed, max_passenger_capacity, start_date, end_date) VALUES
 ('S001', 'AppleMaru', 200.6, 27.1, 14015, 23, 443, '2025-05-10', '9999-12-31')
 , ('S002', 'BananaMaru', 200.6, 27.1, 14015, 23, 443, '2025-06-14', '9999-12-31')
 , ('S003', 'OrangeMaru', 202.1, 28.1, 15301, 20, 114, '2023-01-10', '9999-12-31')
 , ('S004', 'GrapeMaru', 202.1, 28.1, 15301, 20, 114, '2023-03-05', '9999-12-31')
 ;
 
-/* 車両区分マスタ */
+/* 車両区分マスタテーブル */
 INSERT INTO SHIPS.VEHICLE_TYPES (type_code, type_name, length_limit, displacement_limit) VALUES
 ('CAR_SMALL', '軽自動車', 5.0, 0)
 , ('CAR_REG', '普通車', 6.0, 0)
@@ -27,7 +27,7 @@ INSERT INTO SHIPS.VEHICLE_TYPES (type_code, type_name, length_limit, displacemen
 , ('BICYCLE', '自転車', 0.0, 0)
 ;
 
-/* 船別積載能力 */
+/* 船別積載能力テーブル */
 -- AppleMaru(S001), BananaMaru(S002)用
 -- 大型トラック140台、乗用車150台、バイク40台の要件を按分
 -- トラック、乗用車、バイク内で枠の流用が可能。ただし、最大積載量は越えない。
@@ -44,7 +44,7 @@ INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) VALUES
 , ('S001', 'BICYCLE', 10);
 
 -- BananaMaruはAppleMaruと同じ設定
-INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) 
+INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity)
 SELECT 'S002', type_code, max_capacity FROM SHIPS.SHIP_CAPACITIES WHERE ship_id = 'S001';
 
 -- OrangeMaru(S003), GrapeMaru(S004)用
@@ -63,11 +63,11 @@ INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) VALUES
 , ('S003', 'BICYCLE',           5);
 
 -- GrapeMaruはOrangeMaruと同じ設定
-INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity) 
+INSERT INTO SHIPS.SHIP_CAPACITIES (ship_id, type_code, max_capacity)
 SELECT 'S004', type_code, max_capacity FROM SHIPS.SHIP_CAPACITIES WHERE ship_id = 'S003';
 
 
-/* 客室クラス定義マスタ */
+/* 客室クラス定義マスタテーブル */
 INSERT INTO SHIPS.ROOM_CLASS_MASTER VALUES
 ('SW', 'スイート', 2, '豪華個室。「室単位」で予約。')
 , ('DX', 'デラックス', 4, '家族向け個室。「室単位」で予約。1名でも「1室利用」ができる（貸切料が発生する）。')
@@ -86,7 +86,7 @@ INSERT INTO SHIPS.SHIP_ROOM_CLASSES (ship_id, room_class_id, room_count, capacit
 ;
 
 /* 客室マスタテーブル */
-INSERT INTO SHIPS.ROOMS (room_id, ship_id, room_class_id, room_no) 
+INSERT INTO SHIPS.ROOMS (room_id, ship_id, room_class_id, room_no)
 SELECT
   ship_id || room_class_id || LPAD(n::text, 3, '0') AS room_id
   , ship_id
@@ -100,14 +100,14 @@ WHERE
 ;
 
 /* 航路テーブル */
-INSERT INTO SHIPS.ROUTES VALUES 
+INSERT INTO SHIPS.ROUTES (route_id, departure_port_id, arrival_port_id) VALUES
 ('R1', 'P1', 'P3')
 , ('R2', 'P1', 'P2')
 , ('R3', 'P2', 'P3')
 ;
 
 /* 区間テーブル */
-INSERT INTO SHIPS.SECTIONS VALUES 
+INSERT INTO SHIPS.SECTIONS (section_id, departure_port_id, arrival_port_id, standard_time_required, notice) VALUES
 ('S1', 'P1', 'P3', '21時間45分', '下り(西行)')
 , ('S2', 'P3', 'P1', '21時間00分','上り東行')
 , ('S3', 'P1', 'P2', '18時間45分', '上り北行')
@@ -115,7 +115,7 @@ INSERT INTO SHIPS.SECTIONS VALUES
 ;
 
 /* 航路区間構成テーブル */
-INSERT INTO SHIPS.ROUTE_SECTIONS VALUES 
+INSERT INTO SHIPS.ROUTE_SECTIONS (section_id, route_id) VALUES
 ('S1', 'R1')
 , ('S2', 'R1')
 , ('S3', 'R2')
@@ -127,53 +127,123 @@ INSERT INTO SHIPS.ROUTE_SECTIONS VALUES
 ;
 
 /* 港テーブル */
-INSERT INTO SHIPS.PORTS VALUES 
+INSERT INTO SHIPS.PORTS VALUES
 ('P1', '横須賀港', '神奈川県', '神奈川県横須賀市XXX')
 , ('P2', '苫小牧港', '北海道', '北海道苫小牧市YYY')
 , ('P3', '新門司港', '福岡県', '福岡県北九州市ZZZ')
 ;
 
 /* 都道府県テーブル */
-INSERT INTO SHIPS.PREFECTURES VALUES 
+INSERT INTO SHIPS.PREFECTURES VALUES
 ()
 ;
 
 /* 市区町村テーブル */
-INSERT INTO SHIPS.CITIES VALUES 
+INSERT INTO SHIPS.CITIES VALUES
 ()
 ;
 
 /* 運行スケジュールテーブル */
-INSERT INTO SHIPS.SCHEDULE VALUES 
-()
+SELECT s.schedule_id, s.route_id, s.section_id, s.departure_time, s.arrival_time, s.ship_id, p1.port_name, p2.port_name
+FROM ships.schedule AS s
+  INNER JOIN ships.routes AS r ON s.route_id = r.route_id
+  INNER JOIN ships.ports AS p1 ON p1.port_id = r.departure_port_id
+  INNER JOIN ships.ports AS p2 ON p2.port_id = r.arrival_port_id
+WHERE s.route_id = 'R2' -- AND s.ship_id = 'S003'
+ORDER BY s.schedule_id, s.route_id, s.section_id
+;
+
+DELETE FROM SHIPS.SCHEDULE;
+INSERT INTO SHIPS.SCHEDULE (
+    schedule_id, route_id, section_id, departure_date, arrival_date, departure_time, arrival_time, ship_id
+)
+WITH date_series AS (
+  SELECT
+    CAST(d AS DATE) as d_date
+    , (CAST(d AS DATE) - CAST('2026-01-17' AS DATE)) as elapsed_days
+  FROM
+    generate_series('2026-01-17'::date, '2026-01-31'::date, '1 day'::interval) d
+),
+raw_data AS (
+  -- 1. AppleMaru: 苫小牧 ↔ 横須賀 (R2)
+  -- 到着翌日に折り返すサイクル (S4 -> 休み -> S3 -> 休み)
+  SELECT d_date, 'S001' as s_id, 'R2' as rout,
+    CASE (elapsed_days % 4)
+      WHEN 0 THEN 'S4' WHEN 2 THEN 'S3' ELSE NULL
+    END as sect FROM date_series
+  UNION ALL
+  -- 2. BananaMaru: 新門司 ↔ 横須賀 (R1)
+  -- 到着翌日に折り返すサイクル (S2 -> 休み -> S1 -> 休み)
+  SELECT d_date, 'S002' as s_id, 'R1' as rout,
+    CASE (elapsed_days % 4)
+      WHEN 0 THEN 'S2' WHEN 2 THEN 'S1' ELSE NULL
+    END as sect FROM date_series
+  UNION ALL
+  -- 3. OrangeMaru: R3 直通 (苫小牧 -> 横須賀(経由) -> 新門司)
+  -- 到着当日に折り返す
+  SELECT d_date, 'S003' as s_id, 'R3' as rout,
+    CASE (elapsed_days % 4)
+      WHEN 0 THEN 'S4' WHEN 1 THEN 'S1' WHEN 2 THEN 'S2' WHEN 3 THEN 'S3'
+    END as sect FROM date_series
+  UNION ALL
+  -- 4. GrapeMaru: R3 直通 (新門司 -> 横須賀(経由) -> 苫小牧)
+  -- 到着当日に折り返す
+  SELECT d_date, 'S004' as s_id, 'R3' as rout,
+    CASE (elapsed_days % 4)
+      WHEN 2 THEN 'S4' WHEN 3 THEN 'S1' WHEN 0 THEN 'S2' WHEN 1 THEN 'S3'
+    END as sect FROM date_series
+)
+SELECT
+  to_char(d_date, 'YYYYMMDD') || s_id || coalesce(sect, 'XX') as schedule_id
+  , rout as route_id
+  , sect as section_id
+  , d_date as departure_date
+  , d_date + 1 as arrival_date
+  , CASE
+      WHEN sect = 'S1' THEN (d_date + '20:30:00'::time)
+      WHEN sect = 'S2' THEN (d_date + '22:15:00'::time)
+      WHEN sect = 'S3' THEN (d_date + '22:30:00'::time)
+      WHEN sect = 'S4' THEN (d_date + '23:00:00'::time)
+    END as departure_time
+  , CASE
+      WHEN sect = 'S1' THEN (d_date + 1 + '18:15:00'::time)
+      WHEN sect = 'S2' THEN (d_date + 1 + '19:15:00'::time)
+      WHEN sect = 'S3' THEN (d_date + 1 + '17:15:00'::time)
+      WHEN sect = 'S4' THEN (d_date + 1 + '17:30:00'::time)
+    END as arrival_time
+  , s_id as ship_id
+FROM
+  raw_data
+WHERE
+  sect IS NOT NULL
 ;
 
 /* 予約基本情報テーブル */
-INSERT INTO SHIPS.RESERVATIONS VALUES 
+INSERT INTO SHIPS.RESERVATIONS VALUES
 ()
 ;
 
 /* 予約明細情報テーブル */
-INSERT INTO SHIPS.RESERVATION_DETAILS VALUES 
+INSERT INTO SHIPS.RESERVATION_DETAILS VALUES
 ()
 ;
 
 /* 在庫テーブル */
-INSERT INTO SHIPS.INVENTRY VALUES 
+INSERT INTO SHIPS.INVENTRY VALUES
 ()
 ;
 
 /* 発券テーブル */
-INSERT INTO SHIPS.TICKETING VALUES 
+INSERT INTO SHIPS.TICKETING VALUES
 ()
 ;
 
 /* 搭乗実績テーブル */
-INSERT INTO SHIPS.BOARDING VALUES 
+INSERT INTO SHIPS.BOARDING VALUES
 ()
 ;
 
 /* 運賃テーブル */
-INSERT INTO SHIPS.FARE_MASTER VALUES 
+INSERT INTO SHIPS.FARE_MASTER VALUES
 ()
 ;

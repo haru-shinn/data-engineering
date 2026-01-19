@@ -15,5 +15,6 @@
     "[sql]": {
     "editor.tabSize": 2,
     "editor.insertSpaces": true
-    }
+    },
+    "editor.minimap.maxColumn": 40
 }
