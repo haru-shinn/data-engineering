@@ -17,7 +17,7 @@ INSERT INTO SHIPS.SHIPS (ship_id, ship_name, length, width, gross_tonnage, servi
 INSERT INTO SHIPS.VEHICLE_TYPES (type_code, type_name, length_limit, displacement_limit) VALUES
 ('CAR_SMALL', '軽自動車', 5.0, 0)
 , ('CAR_REG', '普通車', 6.0, 0)
-, ('TRACK_SMALL', '軽トラック', 5.0, 0)
+, ('TRUCK_SMALL', '軽トラック', 5.0, 0)
 , ('TRUCK_REG', '普通トラック', 9.0, 0)
 , ('TRUCK_BIG', '大型トラック', 13.0, 0)
 , ('MOT_CY_SMALL', '二輪（50cc以下）', 0.0, 50)
@@ -144,15 +144,6 @@ INSERT INTO SHIPS.CITIES VALUES
 ;
 
 /* 運行スケジュールテーブル */
-SELECT s.schedule_id, s.route_id, s.section_id, s.departure_time, s.arrival_time, s.ship_id, p1.port_name, p2.port_name
-FROM ships.schedule AS s
-  INNER JOIN ships.routes AS r ON s.route_id = r.route_id
-  INNER JOIN ships.ports AS p1 ON p1.port_id = r.departure_port_id
-  INNER JOIN ships.ports AS p2 ON p2.port_id = r.arrival_port_id
-WHERE s.route_id = 'R2' -- AND s.ship_id = 'S003'
-ORDER BY s.schedule_id, s.route_id, s.section_id
-;
-
 DELETE FROM SHIPS.SCHEDULE;
 INSERT INTO SHIPS.SCHEDULE (
     schedule_id, route_id, section_id, departure_date, arrival_date, departure_time, arrival_time, ship_id
@@ -163,8 +154,8 @@ WITH date_series AS (
     , (CAST(d AS DATE) - CAST('2026-01-17' AS DATE)) as elapsed_days
   FROM
     generate_series('2026-01-17'::date, '2026-01-31'::date, '1 day'::interval) d
-),
-raw_data AS (
+)
+, raw_data AS (
   -- 1. AppleMaru: 苫小牧 ↔ 横須賀 (R2)
   -- 到着翌日に折り返すサイクル (S4 -> 休み -> S3 -> 休み)
   SELECT d_date, 'S001' as s_id, 'R2' as rout,
@@ -219,18 +210,41 @@ WHERE
 ;
 
 /* 予約基本情報テーブル */
-INSERT INTO SHIPS.RESERVATIONS VALUES
-()
-;
+-- 初期データなし
 
 /* 予約明細情報テーブル */
-INSERT INTO SHIPS.RESERVATION_DETAILS VALUES
-()
-;
+-- 初期データなし
 
 /* 在庫テーブル */
-INSERT INTO SHIPS.INVENTRY VALUES
-()
+INSERT INTO SHIPS.INVENTRY (
+  schedule_id, section_id, room_class_id, room_count, remaining_room_cnt, num_of_people, remaining_num_of_people
+)
+SELECT 
+  s.schedule_id
+  , s.section_id
+  , src.room_class_id 
+  , src.room_count             -- 最大部屋数
+  , src.room_count             -- 残り部屋数（初期値）
+  , src.total_occupancy          -- 最大定員（人）
+  , src.total_occupancy          -- 残り定員（人）
+FROM
+  SHIPS.SCHEDULE s
+  INNER JOIN SHIPS.SHIP_ROOM_CLASSES src ON s.ship_id = src.ship_id
+;
+
+/* 車両在庫テーブル */
+INSERT INTO SHIPS.VEHICLE_INVENTRY (
+  schedule_id, section_id, type_code, max_capacity, remaining_capacity
+)
+SELECT 
+  s.schedule_id
+  s,section_id
+  , sc.type_code
+  , sc.max_capacity         -- 最大積載台数
+  , sc.max_capacity          -- 残り台数（初期値）
+FROM
+  SHIPS.SCHEDULE s
+  INNER JOIN SHIPS.SHIP_CAPACITIES sc ON s.ship_id = sc.ship_id
 ;
 
 /* 発券テーブル */
