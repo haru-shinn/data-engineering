@@ -1,5 +1,11 @@
 /* 船の予約管理用のDML */
 
+/* 
+=========================================
+初期データ
+=========================================
+*/
+
 /* 乗客テーブル */
 INSERT INTO SHIPS.PASSENGERS VALUES
 ()
@@ -260,4 +266,84 @@ INSERT INTO SHIPS.BOARDING VALUES
 /* 運賃テーブル */
 INSERT INTO SHIPS.FARE_MASTER VALUES
 ()
+;
+
+
+/* 
+=========================================
+テストデータ
+=========================================
+*/
+-- 予約実行時のクエリ
+-- Aさん：1/31 横須賀→苫小牧（R2/S3, AppleMaru, S001）大人2名・乗用車1台
+INSERT INTO SHIPS.RESERVATIONS (reservation_id, rep_name, rep_email, reservation_date, vehicle_type_code) VALUES 
+('20260120-001', '田中 太郎', 'tanaka@example.com', '2026-01-20', 'CAR_REG')
+;
+
+INSERT INTO SHIPS.RESERVATION_DETAILS (reservation_id, detail_id, section_id, schedule_id, passenger_type, ship_id, room_class_id, applied_fare) VALUES 
+('20260120-001', '001', 'S3', '20260131S001S3', 'ADULT', 'S001', 'DX', 35000),
+('20260120-001', '002', 'S3', '20260131S001S3', 'ADULT', 'S001', 'DX', 35000)
+;
+
+UPDATE SHIPS.INVENTRY 
+SET remaining_room_cnt = remaining_room_cnt - 1,
+    remaining_num_of_people = remaining_num_of_people - 2
+WHERE 
+  schedule_id = '20260131S001S3'
+  AND section_id = 'S3'
+  AND room_class_id = 'DX'
+  AND remaining_room_cnt >= 1
+;
+
+UPDATE SHIPS.VEHICLE_INVENTRY
+SET remaining_capacity = remaining_capacity - 1
+WHERE 
+  schedule_id = '20260131S001S3'
+  AND section_id = 'S3'
+  AND type_code = 'CAR_REG'
+  AND remaining_capacity >= 1
+;
+
+-- Bさん：1/21 新門司→苫小牧（R3/S2+S3, GrapeMaru, S004）大人1名・バイク1台
+INSERT INTO SHIPS.RESERVATIONS (reservation_id, rep_name, rep_email, reservation_date, vehicle_type_code) VALUES
+('20260120-002', '佐藤 花子', 'sato@example.com', '2026-01-20', 'MOT_CY_BIG')
+;
+-- 第1区間: 新門司→横須賀 (S2)
+INSERT INTO SHIPS.RESERVATION_DETAILS (reservation_id, detail_id, section_id, schedule_id, passenger_type, ship_id, room_class_id, applied_fare) VALUES
+('20260120-002', '001', 'S2', '20260121S004S2', 'ADULT', 'S004', 'TR', 18000)
+-- 第2区間: 横須賀→苫小牧 (S3)
+, ('20260120-002', '001', 'S3', '20260122S004S3', 'ADULT', 'S004', 'TR', 18000)
+;
+
+
+UPDATE SHIPS.INVENTRY 
+SET remaining_room_cnt = remaining_room_cnt - 1,
+    remaining_num_of_people = remaining_num_of_people - 1
+WHERE 
+  schedule_id = '20260121S004S2'
+  AND room_class_id = 'EC'
+  AND remaining_room_cnt >= 1
+;
+UPDATE SHIPS.INVENTRY 
+SET remaining_room_cnt = remaining_room_cnt - 1,
+    remaining_num_of_people = remaining_num_of_people - 1
+WHERE 
+  schedule_id = '20260122S004S3'
+  AND room_class_id = 'EC'
+  AND remaining_room_cnt >= 1
+;
+
+UPDATE SHIPS.VEHICLE_INVENTRY
+SET remaining_capacity = remaining_capacity - 1
+WHERE 
+  schedule_id = '20260121S004S2'
+  AND type_code = 'MOT_CY_BIG'
+  AND remaining_capacity >= 1
+;
+UPDATE SHIPS.VEHICLE_INVENTRY
+SET remaining_capacity = remaining_capacity - 1
+WHERE 
+  schedule_id = '20260122S004S3'
+  AND type_code = 'MOT_CY_BIG'
+  AND remaining_capacity >= 1
 ;
