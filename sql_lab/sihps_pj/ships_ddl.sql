@@ -4,8 +4,12 @@
 データベース：postgreSQL
 */
 
+/* ================================================== */
+
 CREATE DATABASE WORK_DB;
 CREATE SCHEMA SHIPS;
+
+/* ================================================== */
 
 -- 乗客テーブル
 DROP TABLE IF EXISTS SHIPS.PASSENGERS;
@@ -232,4 +236,102 @@ CREATE TABLE IF NOT EXISTS SHIPS.FARE_MASTER (
   , ship_id CHAR(4) REFERENCES ships.ships(ship_id)
   , fare INTEGER
   , PRIMARY KEY (room_class, route_id)
+);
+
+/* ================================================== */
+
+/*
+空席照会ビューの作成
+
+- 利用者の操作
+  - 出港日と区間を入力する。
+結果の表示
+  - 出港日と+2日までの予約を表示する。
+  - 出港日別、客室クラス別に金額と空席があるかを表示（〇、△、×）する。
+  - 客室クラスを考慮することなく、車両在庫を表示（〇、△、×）する。
+　　　　　　　　　　　
+- 利用テーブル
+  - inventry (在庫テーブル)
+  - vehicle_inventry  (車両在庫テーブル)
+  - schedule (運行スケジュールテーブル)
+  - sections (区間テーブル)
+  - ports (港テーブル)
+  - ships (船マスタ（基本情報）テーブル)
+  - room_class_master (客室クラス定義マスタテーブル)
+
+- 表示する値
+  - 出港日 (MM月DD日（DoW）) : schedule.departure_date
+  - 出発港 : ports.port_name
+  - 到着日 (MM月DD日（DoW）) : schedule.arrival_date
+  - 到着港 : ports.port_name
+  - 便名 : ships.ship_name
+  - クラス名 : room_class_master.room_class_name
+  - クラス別予約状況 : inventry.remaining_room_cnt, inventry.remaining_num_of_people
+  - 車両予約状況（クラス別ではない） : vehicle_inventry.remaining_capacity
+
+- 引数
+  - 出港日（YYYY-MM-DD）
+  - 区間（section_id）
+*/
+DROP VIEW ships.availability_v;
+CREATE OR REPLACE VIEW ships.availability_v AS (
+WITH summary_vehicle AS (
+  SELECT
+    schedule_id
+    , SUM(CASE WHEN type_code = 'CAR_SMALL' THEN remaining_capacity ELSE 0 END) AS car_small_rem
+    , SUM(CASE WHEN type_code = 'CAR_REG' THEN remaining_capacity ELSE 0 END) AS car_reg_rem
+    , SUM(CASE WHEN type_code = 'TRUCK_SMALL' THEN remaining_capacity ELSE 0 END) AS truck_small_rem
+    , SUM(CASE WHEN type_code = 'TRUCK_REG' THEN remaining_capacity ELSE 0 END) AS truck_reg_rem
+    , SUM(CASE WHEN type_code = 'TRUCK_BIG' THEN remaining_capacity ELSE 0 END) AS truck_big_rem
+    , SUM(CASE WHEN type_code = 'MOT_CY_SMALL' THEN remaining_capacity ELSE 0 END) AS mot_cy_small_rem
+    , SUM(CASE WHEN type_code = 'MOT_CY_REG' THEN remaining_capacity ELSE 0 END) AS mot_cy_reg_rem
+    , SUM(CASE WHEN type_code = 'MOT_CY_BIG' THEN remaining_capacity ELSE 0 END) AS mot_cy_big_rem
+    , SUM(CASE WHEN type_code = 'MOT_CY_HIGH_BIG' THEN remaining_capacity ELSE 0 END) AS mot_cy_high_big_rem
+    , SUM(CASE WHEN type_code = 'BICYCLE' THEN remaining_capacity ELSE 0 END) AS bicycle_rem
+  FROM
+    ships.vehicle_inventry
+  GROUP BY 
+    schedule_id
+)
+SELECT
+  sc.schedule_id
+  , sc.route_id
+  , sc.departure_date
+  , sc.departure_time
+  , sc.arrival_date
+  , sc.arrival_time
+  , s.ship_name
+  , rcm.room_class_name
+  , sec.section_id
+  , dep_port.port_name AS departure_port
+  , arr_port.port_name AS arrival_port
+  , i.remaining_room_cnt
+  , i.room_count
+  , CASE
+      WHEN (CAST(remaining_room_cnt as FLOAT) / room_count) = 0 THEN '×'
+      WHEN (CAST(remaining_room_cnt as FLOAT) / room_count) <= 0.2 THEN '△'
+      WHEN (CAST(remaining_room_cnt as FLOAT) / room_count) <= 0.5 THEN '〇'
+      ELSE '◎'
+    END AS room_vacancy_rate
+  , sv.car_small_rem
+  , sv.car_reg_rem
+  , sv.truck_small_rem
+  , sv.truck_reg_rem
+  , sv.truck_big_rem
+  , sv.mot_cy_small_rem
+  , sv.mot_cy_reg_rem
+  , sv.mot_cy_big_rem
+  , sv.mot_cy_high_big_rem
+  , sv.bicycle_rem
+FROM
+  ships.schedule AS sc
+  INNER JOIN ships.ships AS s ON sc.ship_id = s.ship_id
+  INNER JOIN ships.sections AS sec ON sec.section_id = sc.section_id
+  INNER JOIN ships.inventry AS i ON sc.schedule_id = i.schedule_id
+  INNER JOIN ships.room_class_master AS rcm ON rcm.room_class_id = i.room_class_id
+  LEFT JOIN summary_vehicle AS sv ON sv.schedule_id = sc.schedule_id
+  INNER JOIN ships.ports AS dep_port ON dep_port.port_id = sec.departure_port_id
+  INNER JOIN ships.ports AS arr_port ON arr_port.port_id = sec.arrival_port_id
+ORDER BY
+  sc.schedule_id, sc.ship_id
 );
