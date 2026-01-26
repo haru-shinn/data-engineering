@@ -25,8 +25,11 @@ AS $$
 DECLARE
   p_current_date DATE;
   p_res_id TEXT;
-BEGIN
+  upsert_count INTEGER;
+  actual_upsert_count INTEGER;
+  error_message TEXT;
 
+BEGIN
   ----------------------------------------
   -- ルート判定
   -- ルート（R1,R2 と R3） によって、処理を変更する。
@@ -55,6 +58,9 @@ BEGIN
     AND route_id = p_route_id
     AND departure_date IN (p_departure_date, CAST(p_departure_date AS DATE) + CAST('1 days' AS INTERVAL))
   FOR UPDATE;
+
+  SELECT COUNT(*) FROM target_sections INTO upsert_count;
+  RAISE NOTICE '更新対象のレコード: %', upsert_count;
 
   ----------------------------------------
   -- 予約IDの作成
@@ -101,6 +107,13 @@ BEGIN
     AND i.remaining_room_cnt >= 1
   ;
 
+  GET DIAGNOSTICS actual_upsert_count = ROW_COUNT;
+  RAISE NOTICE '実際に更新されたレコード: %', actual_upsert_count;
+  
+  IF actual_upsert_count < upsert_count THEN
+    RAISE EXCEPTION '部屋の在庫不足です（必要: %, 確保: %）', upsert_count, actual_upsert_count;
+  END IF;
+
   -- 車両在庫テーブル
   UPDATE ships.vehicle_inventry AS i
   SET remaining_capacity = remaining_capacity - p_vehicle_reserve_cnt
@@ -113,9 +126,22 @@ BEGIN
     AND i.remaining_capacity >= p_vehicle_reserve_cnt
   ;
 
+  GET DIAGNOSTICS actual_upsert_count = ROW_COUNT;
+  RAISE NOTICE '実際に更新されたレコード: %', actual_upsert_count;
+
+  IF actual_upsert_count < upsert_count THEN
+    RAISE EXCEPTION '車両の在庫不足です（必要: %, 確保: %）', upsert_count, actual_upsert_count;
+  END IF;
+
+EXCEPTION WHEN OTHERS THEN
+  GET STACKED DIAGNOSTICS error_message = MESSAGE_TEXT
+  RAISE EXCEPTION 'MESSAGE_TEXT %', error_message;
+
 END;
 $$;
 
 -- プロシージャの呼び出し
 CALL ships.insert_reservation(CAST('2026-01-23' AS DATE), 'P2', 'S001', 'R2', NULL, 'test_user_1', 'test@fuga.com', 'ADULT', 'TR', 2, 3000, 'CAR_REG', 1);
 CALL ships.insert_reservation(CAST('2026-01-20' AS DATE), 'P3', 'S004', 'R3', NULL, 'test_user_2', 'abc@fuga.com', 'ADULT', 'DX', 3, 1800, 'MOT_CY_BIG', 3);
+-- シーケンスのリセット
+ALTER SEQUENCE ships.reservation_seq RESTART WITH 1;
