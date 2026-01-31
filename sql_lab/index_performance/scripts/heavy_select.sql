@@ -1,0 +1,1 @@
+SELECT count(*) FROM sample_tbl WHERE md5(balance::text) LIKE '%123%';
