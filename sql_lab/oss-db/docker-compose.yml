@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ossdb_postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: test-user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: training_db
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    volumes:
+      # ホスト側の ./my-config フォルダに設定ファイルを置いて同期させる
+      - ./my-config:/etc/postgresql
+      # データを永続化させる設定
+      - ./pgdata:/var/lib/postgresql/data
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]

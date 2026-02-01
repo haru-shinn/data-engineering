@@ -1,0 +1,12 @@
+構成での学習サイクル
+
+- 起動
+docker compose up -d
+
+- WSL2上の my-config/postgresql.conf をエディタで編集（例：max_connections を変えてみる）。
+
+- 設定反映
+docker compose restart training_db
+
+- 設定の確認
+docker compose exec training_db psql -U postgres -c "SHOW max_connections;"
