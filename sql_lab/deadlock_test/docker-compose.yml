@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: postgres_container_deadlock
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: test-user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: training_db
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    volumes:
+      # 初期化SQLを自動実行させる設定
+      - ./init:/docker-entrypoint-initdb.d
+      # データを永続化させる設定
+      - ./pgdata:/var/lib/postgresql/data
