@@ -545,7 +545,332 @@ select key_col, greatest(coalesce(x, y), coalesce(y, x)) as result from variable
 -- 第３章　SQLの高度な応用
 ---------------------------------------------------------------
 
+/* 再帰とポインタチェイン */
+create table postalhistory (
+  name char(1)
+  , pcode char(7)
+  , new_pcode char(7)
+);
+insert into postalhistory values ('A', '4130001', '4130002');
+insert into postalhistory values ('A', '4130002', '4130003');
+insert into postalhistory values ('A', '4130003', null);
+insert into postalhistory values ('B', '4130041', null);
+insert into postalhistory values ('C', '4103213', '4380824');
+insert into postalhistory values ('C', '4380824', null);
 
+
+with recursive tmp(name, pcode, new_pcode, rn) as (
+  select name, pcode, new_pcode, 1 as rn
+  from postalhistory
+  where new_pcode is null
+  union all
+  select p.name, p.pcode, p.new_pcode, t.rn + 1
+  from postalhistory as p
+    inner join tmp as t on p.new_pcode = t.pcode
+), tmp2 as (
+  select 
+    name
+    , pcode
+    , min(pcode) over(partition by name) as min_pcode
+    , max(pcode) over(partition by name) as max_pcode
+  from tmp
+)
+select distinct name, min_pcode, max_pcode from tmp2;
+
+
+/* 組み合わせの作成 */
+
+create table date_ranges (
+  start_date date
+  , end_date date
+);
+
+insert into date_ranges values ('2026-01-01', '2026-01-03');
+insert into date_ranges values ('2026-01-02', '2026-01-04');
+insert into date_ranges values ('2026-01-04', '2026-01-05');
+insert into date_ranges values ('2026-01-06', '2026-01-09');
+
+select
+  d1.start_date
+  , d2.end_date
+from
+  date_ranges as d1
+    inner join date_ranges as d2
+    on d1.start_date < d2.end_date
+order by
+  d1.start_date
+  , d2.end_date
+;
+
+
+/* 重なる機関の結合 (特性関数) */
+
+create table timesheets (
+  job_id char(4)
+  , start_date date
+  , end_date date
+);
+
+insert into timesheets values ('J1', '2026-01-01', '2026-01-03');
+insert into timesheets values ('J2', '2026-01-02', '2026-01-04');
+insert into timesheets values ('J3', '2026-01-04', '2026-01-05');
+insert into timesheets values ('J4', '2026-01-06', '2026-01-09');
+insert into timesheets values ('J5', '2026-01-09', '2026-01-09');
+insert into timesheets values ('J6', '2026-01-09', '2026-01-09');
+insert into timesheets values ('J7', '2026-01-12', '2026-01-15');
+insert into timesheets values ('J8', '2026-01-13', '2026-01-14');
+insert into timesheets values ('J9', '2026-01-14', '2026-01-14');
+insert into timesheets values ('J10', '2026-01-17', '2026-01-17');
+
+select
+  start_date
+  , min(end_date) as min_date
+from (
+  select
+    t1.start_date as start_date
+    , t2.end_date as end_date
+  from
+    timesheets as t1, timesheets as t2, timesheets as t3
+  where
+    t1.start_date <= t2.start_date
+  group by
+    t1.start_date, t2.end_date
+  having
+    count(case when (t1.start_date > t3.start_date and t1.start_date <= t3.end_date) 
+                  or (t2.end_date >= t3.start_date and t2.end_date < t3.end_date) 
+                then 1 end) = 0
+    ) as tmp
+group by
+  start_date
+;
+
+
+/* 境界値 */
+drop table if exists reservations;
+create table reservations (
+  user_id char(4)
+  , start_date date
+  , end_date date
+);
+
+insert into reservations values ('R1', '2026-01-01', '2026-01-03');
+insert into reservations values ('R3', '2026-01-04', '2026-01-05');
+insert into reservations values ('R4', '2026-01-06', '2026-01-09');
+insert into reservations values ('R7', '2026-01-12', '2026-01-12');
+
+select * from reservations
+where ('2026-01-01', '2026-01-12') overlaps(start_date, end_date);
+
+select * from reservations
+where ('2026-01-07' between start_date and end_date)
+  or ('2026-01-08' between start_date and end_date)
+  or ('2026-01-07' <= start_date and '2026-01-08' >= end_date)
+;
+
+/* 差集合 */
+
+create table icecream (
+  sale_date date
+  , flavor char(32)
+  , sale_amt integer
+);
+insert into icecream values ('2026-01-01', 'candy', 12000);
+insert into icecream values ('2026-01-01', 'teaole', 8000);
+insert into icecream values ('2026-01-01', 'match', 32000);
+insert into icecream values ('2026-01-01', 'ramlezn', 45000);
+insert into icecream values ('2026-01-01', 'mint', 17000);
+insert into icecream values ('2026-01-02', 'teaole', 20000);
+insert into icecream values ('2026-01-02', 'mellon', 3000);
+insert into icecream values ('2026-01-02', 'matcha', 8000);
+insert into icecream values ('2026-01-02', 'mint', 29000);
+insert into icecream values ('2026-01-02', 'orange', 45000);
+insert into icecream values ('2026-01-03', 'matcha', 21000);
+insert into icecream values ('2026-01-03', 'candy', 9000);
+insert into icecream values ('2026-01-03', 'ramlezn', 8900);
+insert into icecream values ('2026-01-04', 'mint', 7600);
+insert into icecream values ('2026-01-04', 'orange', 7600);
+insert into icecream values ('2026-01-04', 'ramlezn', 50000);
+
+select i1.sale_date, i2.flavor
+from icecream as i1 cross join icecream as i2
+except
+select sale_date, flavor from icecream
+order by sale_date; 
+
+select i1.sale_date, i2.flavor
+from icecream as i1 cross join icecream as i2
+where not exists (
+  select sale_date, flavor
+  from icecream as i3
+  where i3.sale_date = i1.sale_date
+    and i3.flavor = i2.flavor
+)
+order by sale_date; 
+
+/* テーブルの比較 */
+drop table if exists tbl_1;
+drop table if exists tbl_2;
+
+create table tbl_1 (
+  keycol char(1)
+  , c1 integer
+  , c2 integer
+  , c3 integer
+);
+create table tbl_2 (
+  keycol char(1)
+  , c1 integer
+  , c2 integer
+  , c3 integer
+);
+insert into tbl_1 values ('A', 1 ,2, 3);
+insert into tbl_1 values ('B', 4, 5, 6);
+insert into tbl_1 values ('C', 7, 8, 9);
+insert into tbl_2 values ('A', 1, 2, 3);
+insert into tbl_2 values ('B', 4, 5, 6);
+insert into tbl_2 values ('C', 7, 8, 0);
+
+select * from tbl_1
+union
+select * from tbl_2
+;
+
+select keycol, count(*)
+from (select * from tbl_1
+      union
+      select * from tbl_2)
+group by keycol
+having count(*) >= 2;
+
+select * from tbl_1
+intersect
+select * from tbl_2
+;
+
+
+/* 完全外部結合 */
+drop table if exists class_a;
+create table class_a (
+  id char(1)
+  , name varchar(16)
+);
+
+drop table if exists class_b;
+create table class_b (
+  id char(1)
+  , name varchar(16)
+);
+
+insert into class_a values (1, '田中');
+insert into class_a values (2, '鈴木');
+insert into class_a values (3, '伊集院');
+insert into class_b values (1, '田中');
+insert into class_b values (2, '鈴木');
+insert into class_b values (4, '西園寺');
+
+select 
+  coalesce(a.id, b.id) as id
+  , coalesce(a.name, b.name) as name
+from
+  class_a as a full outer join class_b as b
+  on a.id = b.id
+;
+
+select
+  coalesce(a.id, b.id) as id
+  , coalesce(a.name, b.name) as name
+from
+  class_a as a full outer join class_b as b
+  on a.id = b.id
+where
+  a.name is null
+  or b.name is null
+;
+
+/* 再帰共通表式（最短経路） */
+
+drop table if exists routes;
+create table routes (
+  source_city varchar(32)
+  , destination_city varchar(32)
+  , distance integer not null
+);
+insert into routes values ('chicago', 'boston', 985);
+insert into routes values ('boston', 'chicago', 985);
+insert into routes values ('boston', 'new york', 215);
+insert into routes values ('new york', 'boston', 215);
+insert into routes values ('new york', 'philadelphia', 95);
+insert into routes values ('philadelphia', 'new york', 95);
+insert into routes values ('philadelphia', 'washington', 140);
+insert into routes values ('new york', 'philadelphia', 140);
+insert into routes values ('washington', 'atlanta', 640);
+insert into routes values ('atlanta', 'washington', 640);
+insert into routes values ('atlanta', 'miami', 660);
+insert into routes values ('miami', 'atlanta', 660);
+
+with recursive shortestpaths as (
+  select 
+    'New York' as source_city
+    , destination_city
+    , distance
+    , array['New York', destination_city] as path
+  from routes
+  where source_city = 'new york'
+  union all
+  select
+    sp.source_city
+    , r.destination_city
+    , sp.distance + r.distance
+    , sp.path || r.destination_city
+  from
+    shortestpaths sp inner join routes r
+    on sp.destination_city = r.source_city
+  where
+    r.destination_city <> all(sp.path) 
+),
+bestpaths as (
+  select
+    source_city
+    , destination_city
+    , min(distance) as min_distance
+  from
+    shortestpaths
+  group by
+    source_city, destination_city
+)
+select
+  destination_city
+  , min_distance
+from
+  bestpaths
+where
+  destination_city <> 'new york'
+order by
+  min_distance;
+
+/* intersect */
+
+create table relation (
+  followee integer
+  , follower integer
+);
+
+insert into relation values (1, 2);
+insert into relation values (1, 3);
+insert into relation values (1, 4);
+insert into relation values (2, 1);
+insert into relation values (2, 3);
+insert into relation values (2, 6);
+insert into relation values (3, 1);
+insert into relation values (4, 2);
+insert into relation values (4, 5);
+insert into relation values (5, 2);
+insert into relation values (5, 3);
+
+select followee, follower from relation
+intersect
+select follower, followee from relation
+;
 
 ---------------------------------------------------------------
 -- 第４章　SQLで数学パズルを解く
