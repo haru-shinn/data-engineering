@@ -1,36 +1,5 @@
 # コマンド集
 
-## DockerCompose利用
-
-```bash
-# コンテナ起動
-$ docker compose up -d
-$ docker container ps
-
-# ログの確認
-$ docker logs {$container_name}
-$ docker logs -f {$container_name}
-
-# 初期化
-## コンテナ停止 ＆ ボリュームの完全削除
-docker compose down -v
-## ローカルの pgdata フォルダを物理削除（念のため）
-sudo rm -rf ./pgdata
-## 起動（これで ddl.sql が実行される）
-docker compose up -d
-
-# DBへの接続
-$ psql -h localhost -p 5433 -U {$user_name$} -d {$db_name}
-# DB内のテーブル確認
-docker exec -it {$container_name} psql -U {$user_name$} -d {$db_name} -c "\dt"
-
-# 設定変更する場合
-$ docker compose up -d
-$ docker compose restart {$db_name}
-## 確認の一例
-$ docker compose exec training_db psql -U -c "SHOW max_connections;"
-```
-
 ## Dockerfile利用
 
 ### 初回設定(Dockerfileを利用する場合)
@@ -88,4 +57,39 @@ docker exec -it -u {$user_name} {$image_id} /bin/bash
 postgres@642e764eae2f:/$ pg_ctl status
 postgres@642e764eae2f:/$ pg_ctl start
 psql -U postgres -c "\l"
+```
+
+---
+
+## DockerCompose利用
+
+- レプリケーション演習など複数DBを立ち上げることを想定
+
+```bash
+# コンテナ起動
+$ docker compose up -d
+$ docker container ps
+
+# ログの確認
+$ docker logs {$container_name}
+$ docker logs -f {$container_name}
+
+# 初期化
+## コンテナ停止 ＆ ボリュームの完全削除
+docker compose down -v
+## ローカルの pgdata フォルダを物理削除（念のため）
+sudo rm -rf ./pgdata
+## 起動（これで ddl.sql が実行される）
+docker compose up -d
+
+# DBへの接続
+$ psql -h localhost -p {$port} -U {$user_name$} -d {$db_name}
+# DB内のテーブル確認
+docker exec -it {$container_name} psql -U {$user_name$} -d {$db_name} -c "\dt"
+
+# 設定変更する場合
+$ docker compose up -d
+$ docker compose restart {$db_name}
+## 確認の一例
+$ docker compose exec training_db psql -U -c "SHOW max_connections;"
 ```

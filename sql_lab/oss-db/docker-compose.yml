@@ -1,21 +1,51 @@
 services:
-  db:
+  # 送信側（プライマリ）
+  primary:
     image: postgres:16
-    container_name: ossdb_postgres
+    container_name: postgres_primary
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: test-user
+      POSTGRES_USER: test_user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: training_db
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
     volumes:
-      # ホスト側の ./my-config フォルダに設定ファイルを置いて同期させる
-      - ./my-config:/etc/postgresql
-      # データを永続化させる設定
-      - ./pgdata:/var/lib/postgresql/data
-    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+      # 作成したファイルをコンテナ内の設定ディレクトリにマウント
+      - ./my-config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: >
+          postgres 
+          -c hba_file=/etc/postgresql/pg_hba.conf
+          -c wal_level=replica 
+          -c max_wal_senders=10 
+          -c max_replication_slots=10
+          -c hot_standby=on
+  
+  # 受信側（セカンダリ）
+  secondary:
+    image: postgres:16
+    container_name: postgres_secondary
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: password
+      # スタンバイ起動時にプライマリからデータをコピーするコマンド
+      PGDATA: /var/lib/postgresql/data/pgdata
+    depends_on:
+      - primary
+    entrypoint: >
+      bash -c "
+      mkdir -p $$PGDATA;
+      rm -rf $$PGDATA/*;
+      chown -R postgres:postgres /var/lib/postgresql/data;
+
+      until pg_basebackup -h primary -U test_user -D $$PGDATA -vP -R; do
+        echo 'Waiting for primary...';
+        sleep 1;
+      done;
+
+      chown -R postgres:postgres $$PGDATA;
+      chmod 700 $$PGDATA;
+
+      exec gosu postgres postgres -c hot_standby=on -c data_directory=$$PGDATA
+      "
