@@ -1,4 +1,5 @@
 services:
+  # ストリーミングレプリケーション用のコンテナ
   # 送信側（プライマリ）
   primary:
     image: postgres:16
@@ -49,3 +50,45 @@ services:
 
       exec gosu postgres postgres -c hot_standby=on -c data_directory=$$PGDATA
       "
+  # ロジカルレプリケーション用のコンテナ
+  # 送信側（プライマリ）
+  primary_logical:
+    image: postgres:16
+    container_name: postgres_primary_logical
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: primary_db
+    volumes:
+      # 作成したファイルをコンテナ内の設定ディレクトリにマウント
+      - ./my-config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: >
+          postgres 
+          -c hba_file=/etc/postgresql/pg_hba.conf
+          -c wal_level=logical
+          -c max_wal_senders=10 
+          -c max_replication_slots=10
+
+  
+  # 受信側（セカンダリ）
+  secondary_logical:
+    image: postgres:16
+    container_name: postgres_secondary_logical
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: secondary_db
+    volumes:
+      # 作成したファイルをコンテナ内の設定ディレクトリにマウント
+      - ./my-config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: >
+          postgres 
+          -c hba_file=/etc/postgresql/pg_hba.conf
+          -c wal_level=logical
+          -c max_wal_senders=10 
+          -c max_replication_slots=10
+  
