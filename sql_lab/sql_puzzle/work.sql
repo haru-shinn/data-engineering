@@ -875,17 +875,628 @@ select follower, followee from relation
 ---------------------------------------------------------------
 -- 第４章　SQLで数学パズルを解く
 ---------------------------------------------------------------
+drop table if exists items;
+CREATE TABLE Items
+(i INTEGER NOT NULL PRIMARY KEY);
+
+INSERT INTO Items VALUES (1);
+INSERT INTO Items VALUES (2);
+INSERT INTO Items VALUES (3);
+INSERT INTO Items VALUES (4);
+INSERT INTO Items VALUES (5);
+
+select i1.i, i2.i
+from items as i1 inner join items as i2
+on i1.i <> i2.i
+order by i1.i, i2.i
+;
+
+select i1.i, i2.i, i3.i
+from items as i1
+  inner join items as i2 on i1.i <> i2.i
+  inner join items as i3 on (i2.i <> i3.i and i3.i <> i1.i)
+order by i1.i, i2.i, i3.i
+;
+
+select i1.i, i2.i, i3.i, i4.i
+from items as i1, items as i2, items as i3, items as i4
+where i2.i not in (i1.i)
+  and i3.i not in (i1.i, i2.i)
+  and i4.i not in (i1.i, i2.i, i3.i)
+;
 
 
+/* 組み合わせ */
+
+select 
+  i1.i, i2.i
+from
+  items as i1 inner join items as i2
+  on i1.i <> i2.i
+where
+  i1.i < i2.i
+;
+
+select
+  i1.i, i2.i, i3.i
+from
+  items as i1 
+  inner join items as i2 on i1.i <> i2.i
+  inner join items as i3 on i2.i < i3.i
+where
+  i1.i < i2.i
+;
+
+
+/* 完全数 */
+
+drop table if exists digits;
+CREATE TABLE Digits
+ (digit INTEGER PRIMARY KEY); 
+
+INSERT INTO Digits VALUES (0);
+INSERT INTO Digits VALUES (1);
+INSERT INTO Digits VALUES (2);
+INSERT INTO Digits VALUES (3);
+INSERT INTO Digits VALUES (4);
+INSERT INTO Digits VALUES (5);
+INSERT INTO Digits VALUES (6);
+INSERT INTO Digits VALUES (7);
+INSERT INTO Digits VALUES (8);
+INSERT INTO Digits VALUES (9);
+
+create table numbers (num) as
+select
+  d1.digit * 10 + d2.digit as num
+from 
+  digits as d1 cross join digits as d2
+where
+  d1.digit * 10 + d2.digit between 1 and 99
+;
+
+select dividend.num as perfect
+from numbers as dividend inner join numbers divisor
+on divisor.num <= dividend.num / 2
+and mod(dividend.num, divisor.num) = 0
+group by dividend.num
+having dividend.num = sum(divisor.num)
+order by perfect;
+
+/* 部分集合の組み合わせ（横持データの場合） */
+drop table if exists elements;
+create table elements (e integer);
+insert into elements values (1);
+insert into elements values (2);
+insert into elements values (3);
+insert into elements values (4);
+insert into elements values (5);
+
+-- 非等値結合
+select e1.e from elements as e1 where e1.e = 7;
+
+select e1.e as e_1, e2.e as e_2 
+from elements as e1 inner join elements as e2 
+  on e1.e < e2.e 
+where e1.e + e2.e = 7;
+
+-- ビットフラグ
+create table booltbl (bit_flg integer);
+insert into booltbl values (1);
+insert into booltbl values (0);
+select a.bit_flg as a_bit, b.bit_flg as b_bit, c.bit_flg as c_bit, d.bit_flg as d_bit, e.bit_flg as e_bit
+from booltbl as a, booltbl as b, booltbl as c, booltbl as d, booltbl as e;
+
+-- スカラサブクエリ
+select e1.e as e_1, e2.e as e_2, e3.e as e_3, e4.e as e_4, e5.e as e_5
+from (
+  select a.bit_flg as a_bit, b.bit_flg as b_bit, c.bit_flg as c_bit, d.bit_flg as d_bit, e.bit_flg as e_bit
+  from booltbl as a, booltbl as b, booltbl as c, booltbl as d, booltbl as e 
+) as flg
+  left join (select e from elements where e = 1) as e1 on a_bit = 1
+  left join (select e from elements where e = 2) as e2 on b_bit = 1
+  left join (select e from elements where e = 3) as e3 on c_bit = 1
+  left join (select e from elements where e = 4) as e4 on d_bit = 1
+  left join (select e from elements where e = 5) as e5 on e_bit = 1
+where coalesce(e1.e, 0) + coalesce(e2.e, 0) + coalesce(e3.e, 0) + coalesce(e4.e, 0) + coalesce(e5.e, 0) = 7;
+
+
+select a_bit * e1 as e_1, b_bit * e2 as e_2, c_bit * e3 as e_3, d_bit * e4 as e_4, e_bit * e5 as e_5
+from (
+  select
+    a_bit, b_bit, c_bit, d_bit, e_bit
+    , (select e from elements where e = 1) as e1
+    , (select e from elements where e = 2) as e2
+    , (select e from elements where e = 3) as e3
+    , (select e from elements where e = 4) as e4
+    , (select e from elements where e = 5) as e5
+  from
+    (select a.bit_flg as a_bit, b.bit_flg as b_bit, c.bit_flg as c_bit, d.bit_flg as d_bit, e.bit_flg as e_bit
+     from booltbl as a, booltbl as b, booltbl as c, booltbl as d, booltbl as e) as flg
+) as tmp
+where
+  a_bit * e1 + b_bit * e2 + c_bit * e3 + d_bit * e4 + e_bit * e5 = 7
+;
+
+
+/* 部分集合の全組み合わせ（横持データの場合） */
+
+create table elementcols (
+  e1 integer, e2 integer, e3 integer, e4 integer, e5 integer
+);
+insert into elementcols values (1, 2, 3, 4, 5);
+
+select e1, e2, e3, e4, e5
+from elementcols
+group by cube(e1, e2, e3, e4, e5)
+having coalesce(e1, 0) + coalesce(e2, 0) + coalesce(e3, 0) + coalesce(e4, 0) + coalesce(e5, 0) = 7
+;
+
+/* 素数 全称量化 */
+select * from numbers;
+
+-- NOT EXISTS
+select num as prime 
+from numbers as dividend
+where 
+  num > 1
+  and not exists (
+    select * from numbers as divisor
+    where
+      divisor.num <= sqrt(dividend.num)
+      and divisor.num <> 1
+      and mod(dividend.num, divisor.num) = 0
+  )
+order by prime;
+
+-- HAVING
+select
+  dividend.num as prime
+from
+  numbers as dividend
+  inner join numbers as divisor
+    on divisor.num <= sqrt(dividend.num)
+where dividend.num > 1
+group by dividend.num
+having 1 = sum(case when mod(dividend.num, divisor.num) = 0 then 1 else 0 end)
+order by prime;
+
+
+-- ウインドウ関数
+select distinct prime
+from (
+  select
+    dividend.num as prime
+    , sum(case when mod(dividend.num, divisor.num) = 0 then 1 else 0 end) over(partition by dividend.num) as flg
+  from
+    numbers as dividend inner join numbers as divisor
+    on divisor.num <= sqrt(dividend.num)
+  where
+    dividend.num > 1
+)
+where flg = 1
+order by prime;
+
+/* 連番は抜け */
+create table gaps (num integer);
+insert into gaps values (1);
+insert into gaps values (2);
+insert into gaps values (3);
+insert into gaps values (5);
+insert into gaps values (6);
+
+select '歯抜けあり' as result
+from gaps
+having count(*) <> max(num)
+;
+
+select
+  num
+  , case 
+      when num + 1 <> lead(num, 1) over(order by num) then '歯抜けあり' 
+      else '歯抜けなし' 
+    end result
+from gaps;
+
+select num
+from numbers
+where num between 1 and (select max(num) from gaps)
+except
+select num from gaps;
+
+
+/* 連番（連続と断絶） */
+
+create table line (num integer);
+insert into line values (1);
+insert into line values (2);
+insert into line values (5);
+insert into line values (6);
+insert into line values (7);
+insert into line values (8);
+insert into line values (11);
+insert into line values (12);
+insert into line values (13);
+insert into line values (15);
+insert into line values (16);
+insert into line values (17);
+
+select 
+  min(tmp.data_val) as start_num
+  , min(tmp.data_val) + count(*) -1 as end_num
+  , count(*) as length
+from (
+  select
+    num as data_val
+    , row_number() over(order by num) as data_seq
+    , num - row_number() over(order by num) as absent_data_grp
+  from
+    line
+) as tmp
+group by
+  tmp.absent_data_grp
+;
+
+select
+  l1.num as start_date
+  , min(l2.num) as end_date
+  , min(l2.num) - l1.num + 1 as length
+from
+  line as l1, line as l2
+where
+  l1.num <= l2.num
+  and not exists (
+    select *
+    from line as l3
+    where l3.num not between l1.num and l2.num
+      and (l3.num = l1.num - 1
+        or l3.num = l2.num + 1)
+  )
+group by
+  l1.num
+order by
+  l1.num
+;
+
+select
+  num, '~', num + (3 - 1) as end_seq
+from (
+  select
+    num
+    , max(num) over(order by num rows between (3 - 1) following and (3 - 1) following) as end_num
+  from
+    line
+) as tmp
+where
+  end_num - num = (3 - 1)
 
 
 ---------------------------------------------------------------
 -- 第５章　ウインドウ関数 SQLで魔法をかける
 ---------------------------------------------------------------
 
+/* 移動平均 */
+CREATE TABLE StockPrice
+(deal_date   DATE,
+ ticker_symbol CHAR(4),
+ stock_price INTEGER,
+   CONSTRAINT pk_StockPrice PRIMARY KEY (deal_date, ticker_symbol));
+
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-01', 'AAAA', 120);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-02', 'AAAA', 125);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-03', 'AAAA', 150);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-04', 'AAAA', 90);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-05', 'AAAA', 104);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-06', 'AAAA', 190);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-01', 'BBBB', 300);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-05', 'BBBB', 200);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-07', 'BBBB', 150);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-09', 'BBBB', 212);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-12', 'BBBB', 350);
+INSERT INTO StockPrice (deal_date, ticker_symbol, stock_price) VALUES ('2025-04-13', 'BBBB', 800);
+
+select
+  deal_date
+  , ticker_symbol
+  , avg(stock_price) over(partition by ticker_symbol order by deal_date rows between 2 preceding and current row) as mvg_avg
+from stockprice;
+
+/* トレンド分析 */
+select
+  deal_date
+  , ticker_symbol
+  , stock_price
+  , case 
+      when stock_price - lag(stock_price) over(partition by ticker_symbol order by deal_date) = 0 then '-'
+      when stock_price - lag(stock_price) over(partition by ticker_symbol order by deal_date) > 0 then 'up'
+      when stock_price - lag(stock_price) over(partition by ticker_symbol order by deal_date) < 0 then 'down'
+      else null
+    end as diff
+from
+  stockprice
+order by
+  ticker_symbol, deal_date;
+  
+/* レスポンスタイム */
+CREATE TABLE ResponseTimes
+(time_id INTEGER,
+ response_time INTEGER,
+   CONSTRAINT pk_ResponseTimes PRIMARY KEY (time_id));
+
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   1, 3);  
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   2, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   3, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   4, 4);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   5, 5);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   6, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   7, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   8, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (   9, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  10, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  11, 4);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  12, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  13, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  14, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  15, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  16, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  17, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  18, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  19, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  20, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  21, 6);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  22, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  23, 8);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  24, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  25, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  26, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  27, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  28, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  29, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  30, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  31, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  32, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  33, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  34, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  35, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  36, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  37, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  38, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  39, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  40, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  41, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  42, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  43, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  44, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  45, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  46, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  47, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  48, 9);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  49, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  50, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  51, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  52, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  53, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  54, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  55, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  56, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  57, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  58, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  59, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  60, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  61, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  62, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  63, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  64, 5);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  65, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  66, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  67, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  68, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  69, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  70, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  71, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  72, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  73, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  74, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  75, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  76, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  77, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  78, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  79, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  80, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  81, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  82, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  83, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  84, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  85, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  86, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  87, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  88, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  89, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  90, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  91, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  92, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  93, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  94, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  95, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  96, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  97, 1);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  98, 3);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES (  99, 2);
+INSERT INTO ResponseTimes(time_id, response_time) VALUES ( 100, 1);
+
+select
+  time_id
+  , response_time
+  , row_number() over(order by response_time)
+  , percentile_cont(0.9) within group (order by response_time)
+from
+  ResponseTimes
+group by
+  time_id
+;
+
+/* 四分位(NTILE関数) */
+select
+  time_id
+  , response_time
+  , ntile(4) over(partition by response_time) as tile
+from
+  ResponseTimes
+order by
+  tile
+;
+
+/* 剰余類 */
+select
+  time_id
+  , response_time
+  , mod(time_id, 4) as modulo
+from
+  ResponseTimes
+order by
+  time_id
+;
+
+/* 中央値 */
+Drop TABLE IF EXISTS Weights;
+CREATE TABLE Weights
+(student_id	CHAR(4) PRIMARY KEY,
+ weight     INTEGER);
+
+●レコード数が奇数
+INSERT INTO Weights VALUES('A100',	50);
+INSERT INTO Weights VALUES('A101',	55);
+INSERT INTO Weights VALUES('A124',	55);
+INSERT INTO Weights VALUES('B343',	60);
+INSERT INTO Weights VALUES('B346',	72);
+INSERT INTO Weights VALUES('C563',	72);
+INSERT INTO Weights VALUES('C345',	72);
+
+●レコード数が偶数
+INSERT INTO Weights VALUES('A100',	50);
+INSERT INTO Weights VALUES('A101',	55);
+INSERT INTO Weights VALUES('A124',	55);
+INSERT INTO Weights VALUES('B343',	60);
+INSERT INTO Weights VALUES('B346',	72);
+INSERT INTO Weights VALUES('C563',	72);
+
+select
+  avg(weight) as avg_weight
+from (
+  select
+    weight
+    , row_number() over(order by weight asc, student_id asc) as hi
+    , row_number() over(order by weight desc, student_id desc) as lo
+  from weights
+)
+where hi in (lo, lo+1, lo-1)
+;  
+
+select avg(weight)
+from (select weight, 2 + row_number() over(order by weight) - count(*) over() as diff from weights) as tmp
+where diff between 0 and 2;
+
+/* 累積 */
+
+CREATE TABLE SalesIcecream
+(shop_id   CHAR(4) NOT NULL,
+ sale_date DATE NOT NULL,
+ sales_amt INTEGER NOT NULL,
+   CONSTRAINT pk_SalesIcecream PRIMARY KEY(shop_id, sale_date) );
+
+INSERT INTO SalesIcecream VALUES('A', '2024-06-01', 67800);
+INSERT INTO SalesIcecream VALUES('A', '2024-06-02', 87000);
+INSERT INTO SalesIcecream VALUES('A', '2024-06-05', 11300);
+INSERT INTO SalesIcecream VALUES('A', '2024-06-10', 9800);
+INSERT INTO SalesIcecream VALUES('A', '2024-06-15', 9800);
+INSERT INTO SalesIcecream VALUES('B', '2024-06-02', 178000);
+INSERT INTO SalesIcecream VALUES('B', '2024-06-15', 18800);
+INSERT INTO SalesIcecream VALUES('B', '2024-06-17', 19850);
+INSERT INTO SalesIcecream VALUES('B', '2024-06-20', 23800);
+INSERT INTO SalesIcecream VALUES('B', '2024-06-21', 18800);
+INSERT INTO SalesIcecream VALUES('C', '2024-06-01', 12500);
+
+select
+  shop_id
+  , sale_date
+  , sales_amt
+  , sum(sales_amt) over(partition by shop_id order by sale_date rows between unbounded preceding and current row)
+from
+  SalesIcecream
+;
+
+/* データと件数の取得 */
+select
+  shop_id
+  , sale_date
+  , sales_amt
+  , sum(sales_amt) over(partition by shop_id order by sale_date) as cumlative_amt
+  , count(*) over() as cnt
+from
+  SalesIcecream
+;
 
 
+/* 最頻値（HAVING句） */
 
+CREATE TABLE Graduates
+(name   VARCHAR(16) PRIMARY KEY,
+ income INTEGER NOT NULL);
+
+INSERT INTO Graduates VALUES('サンプソン', 400000);
+INSERT INTO Graduates VALUES('マイク',     30000);
+INSERT INTO Graduates VALUES('ホワイト',   20000);
+INSERT INTO Graduates VALUES('アーノルド', 20000);
+INSERT INTO Graduates VALUES('スミス',     20000);
+INSERT INTO Graduates VALUES('ロレンス',   15000);
+INSERT INTO Graduates VALUES('ハドソン',   15000);
+INSERT INTO Graduates VALUES('ケント',     10000);
+INSERT INTO Graduates VALUES('ベッカー',   10000);
+INSERT INTO Graduates VALUES('スコット',   10000);
+
+select
+  income, cnt
+from(
+  select
+    income
+    , count(*) as cnt
+    , max(count(*)) over() as max_cnt
+  from
+    Graduates
+  group by
+    income
+) as tmp
+where cnt = max_cnt;
+;
+
+/* ignore nulls */
+DROP TABLE IF EXISTS Elements;
+CREATE TABLE Elements
+(lvl INTEGER NOT NULL,
+ color VARCHAR(10),
+ length INTEGER,
+ width INTEGER,
+ hgt INTEGER,
+   CONSTRAINT pk_Elements PRIMARY KEY(lvl) );
+
+INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(1, 'RED',	8,	10,	12);
+INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(2, NULL,  NULL, NULL,	20);
+INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(3, NULL,	9,	82,	 25);
+INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(4, 'BLUE',		NULL, 67, NULL);
+INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(5, 'GRAY',		NULL, NULL, NULL);
+
+SELECT (SELECT color  FROM Elements WHERE lvl = M.lc) AS color,
+       (SELECT length FROM Elements WHERE lvl = M.ll) AS length,
+       (SELECT width  FROM Elements WHERE lvl = M.lw) AS width,
+       (SELECT hgt    FROM Elements WHERE lvl = M.lh) AS hgt
+  FROM (SELECT MAX(CASE WHEN color IS NOT NULL
+                        THEN lvl END) AS lc,
+               MAX(CASE WHEN length IS NOT NULL
+                        THEN lvl END) AS ll,
+               MAX(CASE WHEN width IS NOT NULL
+                        THEN lvl END) AS lw,
+               MAX(CASE WHEN hgt IS NOT NULL
+                        THEN lvl END) AS lh
+          FROM Elements)  M;
 
 
 ---------------------------------------------------------------
