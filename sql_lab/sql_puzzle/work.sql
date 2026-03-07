@@ -1484,19 +1484,18 @@ INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(3, NULL,	9,	82,	 25
 INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(4, 'BLUE',		NULL, 67, NULL);
 INSERT INTO Elements (lvl, color, length, width, hgt) VALUES(5, 'GRAY',		NULL, NULL, NULL);
 
-SELECT (SELECT color  FROM Elements WHERE lvl = M.lc) AS color,
-       (SELECT length FROM Elements WHERE lvl = M.ll) AS length,
-       (SELECT width  FROM Elements WHERE lvl = M.lw) AS width,
-       (SELECT hgt    FROM Elements WHERE lvl = M.lh) AS hgt
-  FROM (SELECT MAX(CASE WHEN color IS NOT NULL
-                        THEN lvl END) AS lc,
-               MAX(CASE WHEN length IS NOT NULL
-                        THEN lvl END) AS ll,
-               MAX(CASE WHEN width IS NOT NULL
-                        THEN lvl END) AS lw,
-               MAX(CASE WHEN hgt IS NOT NULL
-                        THEN lvl END) AS lh
-          FROM Elements)  M;
+SELECT 
+  (SELECT color FROM Elements WHERE lvl = M.lc) AS max_color
+  , (SELECT length FROM Elements WHERE lvl = M.ll) AS max_length
+  , (SELECT width FROM Elements WHERE lvl = M.lw) AS max_width
+  , (SELECT hgt   FROM Elements WHERE lvl = M.lh) AS max_hgt
+ FROM (SELECT
+        MAX(CASE WHEN color IS NOT NULL THEN lvl END) AS lc,
+          MAX(CASE WHEN length IS NOT NULL THEN lvl END) AS ll,
+          MAX(CASE WHEN width IS NOT NULL THEN lvl END) AS lw,
+          MAX(CASE WHEN hgt IS NOT NULL THEN lvl END) AS lh
+       FROM Elements) as M;
+
 
 
 ---------------------------------------------------------------
