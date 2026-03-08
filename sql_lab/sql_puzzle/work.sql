@@ -1771,3 +1771,304 @@ inner join
 ) as mc
 on c.cnt = mc.max_cnt
 inner join orgchart as o on o.tree_id = c.parent;
+
+
+---------------------------------------------------------------
+-- 第７章　卒業試験
+---------------------------------------------------------------
+
+/* 全称量化・存在量化 */
+
+CREATE TABLE ArrayTbl
+(c1  INTEGER NOT NULL,
+ c2  INTEGER NOT NULL,
+ c3  INTEGER NOT NULL,
+ c4  INTEGER NOT NULL,
+ c5  INTEGER NOT NULL,
+ c6  INTEGER NOT NULL,
+ c7  INTEGER NOT NULL,
+ c8  INTEGER NOT NULL,
+ c9  INTEGER NOT NULL,
+ c10 INTEGER NOT NULL);
+
+INSERT INTO ArrayTbl VALUES (2, 3, 0, 5, 0, 0, 0, 2, 0, 8);
+INSERT INTO ArrayTbl VALUES (1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+INSERT INTO ArrayTbl VALUES (0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+INSERT INTO ArrayTbl VALUES (4, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+INSERT INTO ArrayTbl VALUES (1, 0, 0, 0, 0, 0, 0, 0, 0, 5);
+INSERT INTO ArrayTbl VALUES (0, 0, 0, 0, 1, 0, 0, 0, 0, 0);
+INSERT INTO ArrayTbl VALUES (1, 1, 1, 1, 1, 0, 0, 0, 0, 0);
+
+SELECT *
+FROM ArrayTbl
+WHERE (c1, c2, c3, c4, c5, c6, c7, c8, c9, c10) = (1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+;
+
+SELECT * FROM ArrayTbl
+WHERE 1 IN (c1, c2, c3, c4, c5, c6, c7, c8, c9, c10);
+
+SELECT *
+FROM ArrayTbl
+WHERE CASE WHEN c1 = 1  THEN 1 ELSE 0 END + 
+      CASE WHEN c2 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c3 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c4 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c5 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c6 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c7 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c8 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c9 = 1  THEN 1 ELSE 0 END +
+      CASE WHEN c10 = 1 THEN 1 ELSE 0 END = 5;
+
+/* 行持ちパターン */
+
+CREATE TABLE ArrayTblRow
+(col_id  INTEGER NOT NULL,
+ seq  INTEGER NOT NULL,
+ val  INTEGER NOT NULL,
+   CONSTRAINT pk_ArrayTblRow PRIMARY KEY (col_id, seq));
+
+INSERT INTO ArrayTblRow VALUES (1, 1, 0);
+INSERT INTO ArrayTblRow VALUES (1, 2, 1);
+INSERT INTO ArrayTblRow VALUES (1, 3, 5);
+INSERT INTO ArrayTblRow VALUES (1, 4, 0);
+INSERT INTO ArrayTblRow VALUES (1, 5, 2);
+INSERT INTO ArrayTblRow VALUES (2, 1, 1);
+INSERT INTO ArrayTblRow VALUES (2, 2, 1);
+INSERT INTO ArrayTblRow VALUES (2, 3, 1);
+INSERT INTO ArrayTblRow VALUES (2, 4, 1);
+INSERT INTO ArrayTblRow VALUES (2, 5, 1);
+INSERT INTO ArrayTblRow VALUES (3, 1, 1);
+INSERT INTO ArrayTblRow VALUES (3, 2, 2);
+INSERT INTO ArrayTblRow VALUES (3, 3, 1);
+INSERT INTO ArrayTblRow VALUES (3, 4, 5);
+INSERT INTO ArrayTblRow VALUES (3, 5, 9);
+
+SELECT col_id FROM ArrayTblRow
+GROUP BY col_id
+HAVING 2 = SUM(CASE WHEN val = 1 THEN 1 ELSE 0 END);
+
+
+
+/* 売上の順位 */
+CREATE TABLE PizzaSales
+(sale_date DATE,
+ sale_amt  INTEGER,
+   CONSTRAINT pk_PizzaSales PRIMARY KEY (sale_date) );
+
+INSERT INTO PizzaSales VALUES ('2025-04-01', 10937);
+INSERT INTO PizzaSales VALUES ('2025-04-02', 11298);
+INSERT INTO PizzaSales VALUES ('2025-04-03',  9087);
+INSERT INTO PizzaSales VALUES ('2025-04-04', 32000);
+INSERT INTO PizzaSales VALUES ('2025-04-05', 28789);
+INSERT INTO PizzaSales VALUES ('2025-04-06', 14890);
+
+SELECT * FROM pizzasales ORDER BY sale_amt DESC LIMIT 3;
+
+/* 厳密な順位付け */
+DELETE FROM PizzaSales;
+INSERT INTO PizzaSales VALUES ('2025-04-01', 10937);
+INSERT INTO PizzaSales VALUES ('2025-04-02', 11298);
+INSERT INTO PizzaSales VALUES ('2025-04-03',  9087);
+INSERT INTO PizzaSales VALUES ('2025-04-04', 32000);
+INSERT INTO PizzaSales VALUES ('2025-04-05', 28789);
+INSERT INTO PizzaSales VALUES ('2025-04-06', 14890);
+INSERT INTO PizzaSales VALUES ('2025-04-07', 32000);
+INSERT INTO PizzaSales VALUES ('2025-04-08', 28789);
+
+SELECT 
+  *
+  , row_number() over(order by sale_amt DESC) as rn
+  , rank() over(order by sale_amt DESC) as rnk
+  , dense_rank() over(order by sale_amt DESC) as d_rnk
+FROM pizzasales ORDER BY sale_amt desc;
+
+
+/* ラベルの読み替え */
+CREATE TABLE PopTbl
+(pref_name VARCHAR(32) PRIMARY KEY,
+ population INTEGER NOT NULL);
+
+INSERT INTO PopTbl VALUES('徳島', 100);
+INSERT INTO PopTbl VALUES('香川', 200);
+INSERT INTO PopTbl VALUES('愛媛', 150);
+INSERT INTO PopTbl VALUES('高知', 200);
+INSERT INTO PopTbl VALUES('福岡', 300);
+INSERT INTO PopTbl VALUES('佐賀', 100);
+INSERT INTO PopTbl VALUES('長崎', 200);
+INSERT INTO PopTbl VALUES('東京', 400);
+INSERT INTO PopTbl VALUES('群馬', 50);
+
+select
+  case pref_name
+    when '徳島' then '四国'
+    when '香川' then '四国'
+    when '愛媛' then '四国'
+    when '高知' then '四国'
+    when '福岡' then '九州'
+    when '佐賀' then '九州'
+    when '長崎' then '九州'
+    else 'その他'
+  end as district
+  , sum(population) as sum_pop
+from
+  poptbl
+group by
+  district
+;
+
+
+/* 数値範囲での階級化 */
+CREATE TABLE Heights
+(name    VARCHAR(16) PRIMARY KEY,
+ height  INTEGER NOT NULL);
+
+INSERT INTO Heights VALUES ('田中',   167);
+INSERT INTO Heights VALUES ('藤原',   153);
+INSERT INTO Heights VALUES ('葛西',   182);
+INSERT INTO Heights VALUES ('米原',   159);
+INSERT INTO Heights VALUES ('紀藤',   190);
+INSERT INTO Heights VALUES ('佐々木', 172);
+INSERT INTO Heights VALUES ('轟',     178);
+INSERT INTO Heights VALUES ('向井',   185);
+
+
+SELECT
+  CASE 
+    WHEN height BETWEEN 150 AND 159 THEN '150cm台'
+    WHEN height BETWEEN 160 AND 169 THEN '160cm台'
+    WHEN height BETWEEN 170 AND 179 THEN '170cm台'
+  ELSE 'それ以上'
+  END height_class
+  , count(*) as cnt
+FROM
+  heights
+GROUP BY
+  height_class
+;
+
+
+/* 範囲の重複 1次元の拡張 */
+CREATE TABLE Lines
+(line_id   CHAR(1) NOT NULL,
+ dimension CHAR(1) NOT NULL,
+ low  INTEGER NOT NULL,
+ high INTEGER NOT NULL,
+   CONSTRAINT pk_lines PRIMARY KEY (line_id, dimension),
+   CHECK (low < high));
+
+INSERT INTO Lines VALUES ('A', 'x', 0, 2);
+INSERT INTO Lines VALUES ('B', 'x', 1, 3);
+INSERT INTO Lines VALUES ('C', 'x', 10, 12);
+INSERT INTO Lines VALUES ('D', 'x', 5, 9);
+INSERT INTO Lines VALUES ('E', 'x', 6, 7);
+
+SELECT l1.line_id, l2.line_id
+FROM Lines as l1, Lines as l2
+WHERE l1.line_id < l2.line_id
+  AND ((l1.high between l2.low and l2.high)
+        OR (l2.high between l1.low and l1.high));
+
+
+CREATE TABLE Boxes
+(box_id    CHAR(1) NOT NULL,
+ dimension CHAR(1) NOT NULL,
+ low INTEGER NOT NULL,
+ high INTEGER NOT NULL
+   CHECK (low < high),
+   CONSTRAINT pk_Boxes PRIMARY KEY (box_id, dimension));
+
+INSERT INTO Boxes VALUES ('A', 'x', 0, 2);
+INSERT INTO Boxes VALUES ('A', 'y', 0, 2);
+INSERT INTO Boxes VALUES ('B', 'x', 1, 3);
+INSERT INTO Boxes VALUES ('B', 'y', 1, 4);
+INSERT INTO Boxes VALUES ('C', 'x', 10, 12);
+INSERT INTO Boxes VALUES ('C', 'y', 0, 4);
+INSERT INTO Boxes VALUES ('D', 'x', 5, 9);
+INSERT INTO Boxes VALUES ('D', 'y', 3, 5);
+INSERT INTO Boxes VALUES ('E', 'x', 6, 7);
+INSERT INTO Boxes VALUES ('E', 'y', 3, 4);
+INSERT INTO Boxes VALUES ('F', 'x', 5, 8);
+INSERT INTO Boxes VALUES ('F', 'y', 6, 7);
+
+SELECT B1.box_id, B2.box_id
+  FROM Boxes B1, Boxes B2
+ WHERE B1.box_id < B2.box_id
+   AND B1.dimension = B2.dimension
+   AND (   (B1.high BETWEEN B2.low and B2.high)
+        OR (B2.high BETWEEN B1.low and B1.high))
+ GROUP BY B1.box_id, B2.box_id
+HAVING COUNT(B1.dimension) = 2;
+
+
+/* 最小と最大の枝番 */
+DROP TABLE IF EXISTS Receipts;
+CREATE TABLE Receipts
+(customer_id   CHAR(4) NOT NULL, 
+ seq           INTEGER NOT NULL, 
+ price         INTEGER NOT NULL, 
+   CONSTRAINT pk_Receipts PRIMARY KEY (customer_id, seq));
+
+INSERT INTO Receipts VALUES ('A',   1   ,500    );
+INSERT INTO Receipts VALUES ('A',   2   ,1000   );
+INSERT INTO Receipts VALUES ('A',   3   ,700    );
+INSERT INTO Receipts VALUES ('B',   5   ,100    );
+INSERT INTO Receipts VALUES ('B',   6   ,5000   );
+INSERT INTO Receipts VALUES ('B',   7   ,300    );
+INSERT INTO Receipts VALUES ('B',   9   ,200    );
+INSERT INTO Receipts VALUES ('B',   12  ,1000   );
+INSERT INTO Receipts VALUES ('C',   10  ,600    );
+INSERT INTO Receipts VALUES ('C',   20  ,100    );
+INSERT INTO Receipts VALUES ('C',   45  ,200    );
+INSERT INTO Receipts VALUES ('C',   70  ,50     );
+INSERT INTO Receipts VALUES ('D',   3   ,2000   );
+
+WITH TMP AS (
+  SELECT
+    *
+    , FIRST_VALUE(price) OVER(PARTITION BY customer_id ORDER BY seq ASC) as min_price
+    , FIRST_VALUE(price) OVER(PARTITION BY customer_id ORDER BY seq DESC) as max_price
+  FROM
+    receipts
+)
+SELECT
+  customer_id
+  , seq
+  , price
+  , max_price - min_price as diff
+FROM
+  tmp
+;
+
+/* 重複行の削除 */
+CREATE TABLE Products
+(product_id INTEGER NOT NULL,
+ name VARCHAR(16) NOT NULL,
+ price INTEGER NOT NULL,
+   CONSTRAINT pk_Products PRIMARY KEY(product_id));
+
+INSERT INTO Products VALUES(1, 'りんご',	50);
+INSERT INTO Products VALUES(2, 'みかん',	100);
+INSERT INTO Products VALUES(3, 'みかん',	100);
+INSERT INTO Products VALUES(4, 'みかん',	100);
+INSERT INTO Products VALUES(5, 'バナナ',	80);
+
+SELECT MAX(product_id) FROM Products GROUP BY name, price;
+
+
+/* 累計 */
+CREATE TABLE MonthlySales (
+  month_id INTEGER PRIMARY KEY,
+  month_name VARCHAR(10),
+  cumulative_sales INTEGER );
+
+INSERT INTO MonthlySales VALUES (1, 'Jan', 5000);
+INSERT INTO MonthlySales VALUES (2, 'Feb', 9500);
+INSERT INTO MonthlySales VALUES (3, 'Mar', 15200);
+INSERT INTO MonthlySales VALUES (4, 'Apr', 21900);
+INSERT INTO MonthlySales VALUES (5, 'May', 29800);
+INSERT INTO MonthlySales VALUES (6, 'Jun', 38700);
+
+SELECT month_id, month_name,
+       cumulative_sales - COALESCE(LAG(cumulative_sales, 1) OVER (ORDER BY month_id), 0) AS monthly_sales
+  FROM MonthlySales;
