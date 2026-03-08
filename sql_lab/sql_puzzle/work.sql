@@ -1502,13 +1502,272 @@ SELECT
 -- 第６章　SQLで木構造を扱う
 ---------------------------------------------------------------
 
+/* 隣接モデル（階層の深さ） */
+CREATE TABLE OrgChartAdj
+ (emp  VARCHAR(32) PRIMARY KEY,
+  boss VARCHAR(32),
+  role VARCHAR(32) NOT NULL,
+    CONSTRAINT fk_OrgChartAdj FOREIGN KEY (boss) REFERENCES OrgChartAdj(emp) ); 
+
+INSERT INTO OrgChartAdj VALUES ('高橋', NULL,  '社長');
+INSERT INTO OrgChartAdj VALUES ('鈴木', '高橋', '部長');
+INSERT INTO OrgChartAdj VALUES ('藤井', '高橋', '部長');
+INSERT INTO OrgChartAdj VALUES ('吉村', '藤井', '課長');
+INSERT INTO OrgChartAdj VALUES ('香川', '藤井', '課長');
+INSERT INTO OrgChartAdj VALUES ('高田', '藤井', '課長');
+INSERT INTO OrgChartAdj VALUES ('木曽', '吉村', 'ヒラ');
+
+with recursive emp_tmp(emp, boss, depth) as (
+  select 
+    a1.emp
+    , a1.boss
+    , 1 as depth
+  from orgchartadj as a1
+  where boss is null
+  union all
+  select
+    a2.emp
+    , a2.boss
+    , tmp.depth + 1
+  from
+    orgchartadj as a2 inner join emp_tmp as tmp
+    on a2.boss = tmp.emp
+)
+select emp, boss, depth from emp_tmp;
+
+/* 隣接モデル（ルートノード） */
+with recursive emp_tmp(emp, boss, depth) as (
+  select 
+    a1.emp
+    , a1.boss
+    , 1 as depth
+  from orgchartadj as a1
+  where a1.emp = '香川'
+  union all
+  select
+    a2.emp
+    , a2.boss
+    , tmp.depth + 1
+  from
+    orgchartadj as a2 inner join emp_tmp as tmp
+    on tmp.boss = a2.emp
+)
+select emp, boss, depth from emp_tmp;
+
+
+/* 隣接モデル（リーフノード）*/
+select
+  o1.emp
+from
+  orgchartadj as o1
+where
+  not exists (
+    select 1 from orgchartadj as o2
+    where o1.emp = o2.boss
+  );
+
+/* 入れ子集合モデル（階層の深さ） */
+
+CREATE TABLE OrgChartNestedSets
+ (emp VARCHAR(32) PRIMARY KEY,
+  lft INTEGER NOT NULL,
+  rgt INTEGER NOT NULL,
+    CHECK (lft < rgt)); 
+
+INSERT INTO OrgChartNestedSets VALUES ('高橋',  1, 14);
+INSERT INTO OrgChartNestedSets VALUES ('鈴木',  2,  3);
+INSERT INTO OrgChartNestedSets VALUES ('藤井',  4, 13);
+INSERT INTO OrgChartNestedSets VALUES ('吉村',  5,  8);
+INSERT INTO OrgChartNestedSets VALUES ('木曽',  6,  7);
+INSERT INTO OrgChartNestedSets VALUES ('香川',  9,  10);
+INSERT INTO OrgChartNestedSets VALUES ('高田', 11,  12);
+
+select
+  o2.emp
+  , count(o1.emp) as cnt
+from
+  OrgChartNestedSets as o1, OrgChartNestedSets as o2
+where
+  o2.lft between o1.lft and o1.rgt
+group by
+  o2.emp
+order by cnt;
+
+/* 入れ子集合モデル（上司の抽出） */
+select
+  o1.emp as boss
+from
+  OrgChartNestedSets as o1, OrgChartNestedSets as o2
+where
+  o2.emp = '香川'
+  and o2.lft between o1.lft and o1.rgt
+;
+
+/* 入れ子集合モデル（リーフノード） */
+select *
+from OrgChartNestedSets as o1
+where not exists (
+  select 1 from OrgChartNestedSets as o2
+  where o2.lft > o1.lft
+    and o2.lft < o1.rgt
+);
+
+
+/* 入れ子集合モデル（ルートノード） */
+select *
+from OrgChartNestedSets as o1
+where not exists (
+  select 1 from OrgChartNestedSets as o2
+  where o1.lft > o2.lft
+    and o1.lft < o2.rgt
+);
+
+
+/* 経路列挙モデル（基本） */
+
+CREATE TABLE OrgChartPath
+ (emp  VARCHAR(32) PRIMARY KEY
+    CHECK (REPLACE(emp, '/', '') = emp),
+  path VARCHAR(256) NOT NULL,
+    UNIQUE (path)); 
+
+INSERT INTO OrgChartPath VALUES ('高橋',  '/高橋/');
+INSERT INTO OrgChartPath VALUES ('鈴木',  '/高橋/鈴木/');
+INSERT INTO OrgChartPath VALUES ('藤井',  '/高橋/藤井/');
+INSERT INTO OrgChartPath VALUES ('吉村',  '/高橋/藤井/吉村/');
+INSERT INTO OrgChartPath VALUES ('木曽',  '/高橋/藤井/吉村/木曽/' );
+INSERT INTO OrgChartPath VALUES ('香川',  '/高橋/藤井/香川/' );
+INSERT INTO OrgChartPath VALUES ('高田',  '/高橋/藤井/高田/' );
+
+select emp, length(path) - length(replace(path, '/', '')) - 1 as depth
+from OrgChartPath;
+
+
+/* 経路列挙モデル（上司の抽出） */
+
+select 
+  o1.emp
+  , (select emp from OrgChartPath where path = max(o2.path)) as level_0
+  , (select emp from OrgChartPath where path = max(o3.path)) as level_1
+  , (select emp from OrgChartPath where path = max(o4.path)) as level_2
+from
+  OrgChartPath as o1
+  left join OrgChartPath as o2
+    on o1.path like o2.path || '_%'
+  left join OrgChartPath as o3
+    on o2.path like o3.path || '_%'
+  left join OrgChartPath as o4
+    on o3.path like o4.path || '_%'
+group by
+  o1.emp
+;
 
 
 
----------------------------------------------------------------
--- 第７章　卒業試験
----------------------------------------------------------------
+/* 経路列挙モデル（リーフノード） */
+select * from OrgChartPath as parents
+where not exists (
+  select 1 from OrgChartPath as children
+  where children.path like parents.path || '_%'
+);
 
 
+/* 経路列挙モデル（ルートノード） */
+select * from OrgChartPath
+where emp = replace(path, '/', '');
 
 
+/* 閉包テーブルモデル（ノードの深さ）*/
+CREATE TABLE OrgChart
+ (emp  VARCHAR(32) PRIMARY KEY,
+  role VARCHAR(32) NOT NULL,
+  tree_id INTEGER  UNIQUE NOT NULL); 
+
+CREATE TABLE Closure
+(parent INTEGER NOT NULL,
+ child  INTEGER NOT NULL,
+   CONSTRAINT pk_Closure PRIMARY KEY (parent, child),
+   CONSTRAINT fk_parent FOREIGN KEY  (parent) REFERENCES OrgChart (tree_id),
+   CONSTRAINT fk_child  FOREIGN KEY  (child)  REFERENCES OrgChart (tree_id));
+
+
+INSERT INTO OrgChart VALUES ('高橋',  '社長', 1);
+INSERT INTO OrgChart VALUES ('鈴木',  '部長', 2);
+INSERT INTO OrgChart VALUES ('藤井',  '部長', 3);
+INSERT INTO OrgChart VALUES ('吉村',  '課長', 4);
+INSERT INTO OrgChart VALUES ('香川',  '課長', 5);
+INSERT INTO OrgChart VALUES ('高田',  '課長', 6);
+INSERT INTO OrgChart VALUES ('木曽',  'ヒラ', 7);
+
+INSERT INTO Closure VALUES (1, 1);
+INSERT INTO Closure VALUES (1, 2);
+INSERT INTO Closure VALUES (1, 3);
+INSERT INTO Closure VALUES (1, 4);
+INSERT INTO Closure VALUES (1, 5);
+INSERT INTO Closure VALUES (1, 6);
+INSERT INTO Closure VALUES (1, 7);
+INSERT INTO Closure VALUES (2, 2);
+INSERT INTO Closure VALUES (3, 3);
+INSERT INTO Closure VALUES (3, 4);
+INSERT INTO Closure VALUES (3, 5);
+INSERT INTO Closure VALUES (3, 6);
+INSERT INTO Closure VALUES (3, 7);
+INSERT INTO Closure VALUES (4, 4);
+INSERT INTO Closure VALUES (4, 7);
+INSERT INTO Closure VALUES (5, 5);
+INSERT INTO Closure VALUES (6, 6);
+INSERT INTO Closure VALUES (7, 7);
+
+
+select o.emp, count(*) as depth
+from OrgChart as o inner join Closure as c
+  on o.tree_id = c.child
+group by
+  o.emp
+order by
+  depth
+;
+
+
+/* 閉包テーブルモデル（上司の列挙）*/
+
+select emp
+from OrgChart as o inner join (
+  select c.parent
+  from OrgChart as o inner join Closure as c
+    on o.tree_id = c.child
+  where
+    o.emp = '香川'
+) as tmp
+on o.tree_id = tmp.parent;
+
+
+/* 閉包テーブルモデル（リーフノード）*/
+select emp
+from OrgChart as o inner join (
+  select parent, count(*) as cnt
+  from Closure
+  group by parent
+  having count(*) = 1
+) as c
+on o.tree_id = c.parent;
+
+/* 閉包テーブルモデル（ルートノード）*/
+
+select distinct o.emp
+from (
+  select parent, count(*) as cnt
+  from Closure
+  group by parent
+) as c
+inner join
+(
+  select parent, max(cnt) over() as max_cnt
+  from (
+    select parent, count(*) as cnt
+    from Closure
+    group by parent
+  )
+) as mc
+on c.cnt = mc.max_cnt
+inner join orgchart as o on o.tree_id = c.parent;
