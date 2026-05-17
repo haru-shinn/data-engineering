@@ -1,62 +1,98 @@
 # コマンド集
 
-## Dockerfile利用
+## ## Dockerfile利用（検証環境構築・運用手順書）
 
-### 初回設定(Dockerfileを利用する場合)
+### 新しい手順（推奨）
+
+Dockerfile のビルド時に `initdb`（初期化）を完了させているため、コンテナ起動後は余計な初期化コマンドを叩く必要がなく、すぐに PostgreSQL を利用可能。  
+また、コンテナの重複エラーを防ぐために使い捨て（`--rm`）での運用を標準としている。
+
+#### 初回およびコンテナの新規起動
 
 ```bash
-# Dockerfileの修正
-# コンテナの作成
-$ docker buildx build -t ossdb-study-img .
-[+] Building 51.5s (6/6) FINISHED          
-$ docker run -it --name ossdb-container ossdb-study-img /bin/bash
-## (2回目以降：docker start {$image-id}→docker attach {$image-id})
+# 1. イメージのビルド（Dockerfileの変更を反映）
+docker buildx build -t ossdb-study-img .
 
-# ステータス確認
-pg_ctl status -D /var/lib/postgresql/16/main
-# 開始
-pg_ctl start -D /var/lib/postgresql/16/main
-# 停止
-pg_ctl stop -D /var/lib/postgresql/16/main
-## ENV PGDATA="/var/lib/postgresql/16/main"をdockerfile内に記載している場合は-D オプション不要。
+# 2. コンテナを起動して同時にログイン（使い捨てモードで名前の衝突を防ぐ）
+docker run -it --rm --name ossdb-container ossdb-study-img /bin/bash
 
+# --- これ以降はコンテナ内（postgresユーザー）での操作 ---
 
+# 3. PostgreSQLの起動（Dockerfile内でPGDATAが定義されているため-D不要）
+pg_ctl start
+
+# 4. 検証用データベースの作成と確認
+createdb study_db  # または psql -d postgres -c "CREATE DATABASE study_db;"
+psql -d study_db
+
+```
+
+#### 2回目以降の接続・複数ユーザーのシミュレーション
+
+既存のコンテナが起動している状態で、別ターミナルから追加でログインしたり、試験対策の「同時実行制御（ロック）」を検証したりする際の手順。
+
+```bash
+# パターンA: 別のターミナルから同じコンテナにBashで入る
+docker exec -it -u postgres ossdb-container /bin/bash
+
+# パターンB: 2人目のユーザーとして直接psqlで特定のDBに接続する（ロック検証などに最適）
+docker exec -it ossdb-container psql -U postgres -d study_db
+
+```
+
+（番外編：docker run, docker exec の違い）
+
+|項目|docker run|docker exec|
+|--|--|--|
+|コンテナの状態|まだ存在しない（新しく作る）|すでに起動している必要がある|
+|実行した結果|新しいコンテナが1つ増える|コンテナの数は増えない（中身が増える）|
+|主な用途|テスト環境を新しく立ち上げる時|起動中のDBにログインしてSQLを叩く時、ログを監視する時|
+|対象の指定|イメージ名 を指定する(ossdb-study-img)|コンテナ名 / ID を指定する(ossdb-container)|
+
+---
+
+### 過去の手順とトラブルシュート履歴（ログとして保管）
+
+以前発生していたエラーの原因と、当時の対応策のログです。今後のトラブルシューティングの参考として残す。
+
+#### 初回設定時のログ
+
+当初、Ubuntuにパッケージインストールした直後の不完全なディレクトリが残っていたため、単に `pg_ctl start` を実行するとデータディレクトリ不正でエラーになっていた。そのため、以下の「力技の初期化」をコンテナ内で手動実行して回避していた。
+
+```bash
 # スタートに失敗したので、クラスターの初期化
-# すでにある空のディレクトリを削除（または別の場所を指定）
+# すでにある不完全なディレクトリを強制削除
 rm -rf /var/lib/postgresql/16/main/*
-# initdbを実行して初期化(環境変数PGDATAが設定されている場合は、pg_ctl initdbのみでよい)
+
+# 手動でinitdbを実行して初期化
 /usr/lib/postgresql/16/bin/initdb -D /var/lib/postgresql/16/main
-# 確認
+
+# 設定ファイルの存在確認
 ls -l /var/lib/postgresql/16/main/postgresql.conf
+
 # 起動
 pg_ctl start -D /var/lib/postgresql/16/main
 
-# データベース作成
-psql -d postgres
-postgres=# CREATE DATABASE study_db;
-postgres=# \c study_db
-
-# データベース確認
-psql -U postgres -c "\l"
 ```
 
-### 2回目以降
+#### 旧：2回目以降の手順ログ
+
+以前は `--rm` なしで `docker run` をしていたため、コンテナを抜けた後に「同名のコンテナが既に存在します」というエラー（Conflict）が多発していた。そのため、停止したコンテナを `start` して `attach` する必要があった。
 
 ```bash
 $ cd sql_lab/oss-db
 
-# 実行中のプロセスに接続する
+# 停止中の古いコンテナを再利用する場合
 $ docker container ls -a
-$ docker container start {$iamge_id}
-$ docker container attach {$image_id}
+$ docker container start {$image_id}
+$ docker container attach {$image_id}  # ←注意: exitするとコンテナがまた停止する
 
-# 新しいプロセスを開始する
+# 新しいプロセスを開始する（attach よりこっち優先的に利用する）
 docker exec -it -u {$user_name} {$image_id} /bin/bash
 
-# DB起動
-postgres@642e764eae2f:/$ pg_ctl status
-postgres@642e764eae2f:/$ pg_ctl start
-psql -U postgres -c "\l"
+# 複数ユーザがログインする場合
+docker exec -it {$container_name} psql -U {$二人目のユーザ名} -d {$db_name}
+
 ```
 
 ---
