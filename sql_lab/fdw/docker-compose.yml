@@ -1,0 +1,22 @@
+services:
+    # コンテナA：接続元（ローカルDB）
+    pg_local:
+        image: postgres:16
+        container_name: pg_local
+        environment:
+            POSTGRES_USER: local_user
+            POSTGRES_PASSWORD: local_password
+            POSTGRES_DB: local_db
+        ports:
+            - "5435:5432"
+
+    # コンテナB：接続先（リモートDB）
+    pg_remote:
+        image: postgres:16
+        container_name: pg_remote
+        environment:
+            POSTGRES_USER: remote_user
+            POSTGRES_PASSWORD: remote_password
+            POSTGRES_DB: remote_db
+        ports:
+            - "5436:5432"
